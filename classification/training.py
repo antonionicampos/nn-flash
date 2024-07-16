@@ -56,19 +56,24 @@ def preprocessing(data):
 
 
 def training_model(train_files, valid_files, **kwargs):
-    model_id = kwargs.pop("model_id")
+    model_id = kwargs["id"]
+    model_name = kwargs["model_name"]
+    arch_params = kwargs["arch"]
+    opt_params = kwargs["opt"]
 
-    learning_rate = 0.001
-    epochs = 500
-    batch_size = 32
+    learning_rate = opt_params["lr"]
+    epochs = opt_params["epochs"]
+    batch_size = opt_params["batch_size"]
 
     pbar = tqdm(total=len(train_files))
     results = []
 
-    print(f"Modelo: {kwargs}")
+    print(f"Model: {model_name}")
+    print(f"    Archtecture Params: {arch_params}")
+    print(f"    Optimization Params: {opt_params}", end="\n\n")
     for train_f, valid_f in zip(train_files, valid_files):
         description = train_f.split("\\")[-1].split(".")[0]
-        pbar.set_description(f"model: {model_id}, {description}")
+        pbar.set_description(description)
 
         train_data = pd.read_csv(train_f)
         valid_data = pd.read_csv(valid_f)
@@ -95,7 +100,7 @@ def training_model(train_files, valid_files, **kwargs):
             tf.keras.callbacks.ReduceLROnPlateau(),
             tf.keras.callbacks.EarlyStopping(min_delta=0.005, patience=10),
         ]
-        model = MLPClassifier(**kwargs)
+        model = MLPClassifier(**arch_params)
         model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
         history = model.fit(
             train_ds,
@@ -106,7 +111,10 @@ def training_model(train_files, valid_files, **kwargs):
         )
         results.append(
             {
-                "model_id": model_id,
+                "id": model_id,
+                "model_name": model_name,
+                "arch": arch_params,
+                "opt": opt_params,
                 "data": description.split("\\")[-1],
                 "model": model,
                 "history": history,

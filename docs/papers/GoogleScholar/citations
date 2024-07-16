@@ -1,0 +1,141 @@
+@article{zheng2023dl,
+  title={DL-KF modeling for acceleration of flash calculations in phase equilibrium using deep learning methods},
+  author={Zheng, Zhixue and Di, Yuan and Yu, Enyi},
+  journal={Frontiers in Earth Science},
+  volume={10},
+  pages={1041589},
+  year={2023},
+  publisher={Frontiers Media SA}
+}
+
+@inproceedings{ghorayeb2022integration,
+  title={Integration of Deep-Learning-Based Flash Calculation Model to Reservoir Simulator},
+  author={Ghorayeb, Kassem and Mogensen, Kristian and El Droubi, Nour and Kloucha, Chakib Kada and Ramatullayev, Samat and Mustapha, Hussein},
+  booktitle={Abu Dhabi International Petroleum Exhibition and Conference},
+  pages={D031S073R001},
+  year={2022},
+  organization={SPE}
+}
+
+@article{tao2021fast,
+  title={Fast and accurate phase equilibrium calculations for condensate shale gas reservoirs},
+  author={Tao, Zhang and Hua, Bai and Shuyu, Sun},
+  journal={Chinese Journal of Theoretical and Applied Mechanics},
+  volume={53},
+  number={8},
+  pages={2156--2167},
+  year={2021},
+  publisher={Editorial Office of the Chinese Journal of Mechanics}
+}
+
+@article{kanakaki2024enhancement,
+  title={Enhancement of Machine-Learning-Based Flash Calculations near Criticality Using a Resampling Approach},
+  author={Kanakaki, Eirini Maria and Samnioti, Anna and Gaganis, Vassilis},
+  journal={Computation},
+  volume={12},
+  number={1},
+  pages={10},
+  year={2024},
+  publisher={MDPI}
+}
+
+@article{wang2020practical,
+  title={Practical application of machine learning on fast phase equilibrium calculations in compositional reservoir simulations},
+  author={Wang, Kun and Luo, Jia and Wei, Yizheng and Wu, Keliu and Li, Jing and Chen, Zhangxin},
+  journal={Journal of Computational Physics},
+  volume={401},
+  pages={109013},
+  year={2020},
+  publisher={Elsevier}
+}
+
+@inproceedings{li2023physics,
+  title={Physics-Constrained Neural Network (PcNN): Phase Behavior Modeling for Complex Reservoir Fluids},
+  author={Li, Yiteng and He, Xupeng and Zhang, Zhen and Alsinan, Marwa and Kwak, Hyung and Hoteit, Hussein},
+  booktitle={SPE Reservoir Simulation Conference?},
+  pages={D011S004R004},
+  year={2023},
+  organization={SPE}
+}
+
+@inproceedings{aslam2024machine,
+  title={Machine Learning accelerated Phase Flash Calculation for CO2--Brine System considering Capillarity Effect},
+  author={Aslam, Billal and Tariq, Zeeshan and Yan, Bicheng},
+  booktitle={International Petroleum Technology Conference},
+  pages={D011S001R006},
+  year={2024},
+  organization={IPTC}
+}
+
+@article{ihunde2022application,
+  title={Application of physics informed neural networks to compositional modeling},
+  author={Ihunde, Thelma Anizia and Olorode, Olufemi},
+  journal={Journal of Petroleum Science and Engineering},
+  volume={211},
+  pages={110175},
+  year={2022},
+  publisher={Elsevier}
+}
+
+@inproceedings{koyanbayev2023machine,
+  title={Machine Learning Assisted Flash Calculation for Sour Gas and Crude Oil},
+  author={Koyanbayev, Madiyar and Wang, Lei and Zhumatai, Aset},
+  booktitle={SPE Reservoir Characterisation and Simulation Conference and Exhibition?},
+  pages={D011S001R005},
+  year={2023},
+  organization={SPE}
+}
+
+@inproceedings{ihunde2021application,
+  title={Application of physics informed neural networks to compositional modelling},
+  author={Ihunde, Thelma Anizia and Olorode, Olufemi},
+  booktitle={Asia Pacific Unconventional Resources Technology Conference, Virtual, 16--18 November 2021},
+  pages={487--500},
+  year={2021},
+  organization={Unconventional Resources Technology Conference (URTeC)}
+}
+
+@inproceedings{srinivasan2024artificial,
+  title={Artificial Neural Network based Vapor-Liquid Equilibrium Modeling for Simulation of Transcritical Multiphase Flows},
+  author={Srinivasan, Navneeth and Zhang, Hongyuan and Yang, Suo},
+  booktitle={AIAA SCITECH 2024 Forum},
+  pages={1638},
+  year={2024}
+}
+
+@article{wu2023removing,
+  title={Removing the performance bottleneck of pressure--temperature flash calculations during both the online and offline stages by using physics-informed neural networks},
+  author={Wu, Yuanqing and Sun, Shuyu},
+  journal={Physics of Fluids},
+  volume={35},
+  number={4},
+  year={2023},
+  publisher={AIP Publishing}
+}
+
+@article{samnioti2022application,
+  title={Application of machine learning to accelerate gas condensate reservoir simulation},
+  author={Samnioti, Anna and Anastasiadou, Vassiliki and Gaganis, Vassilis},
+  journal={Clean Technologies},
+  volume={4},
+  number={1},
+  pages={153--173},
+  year={2022},
+  publisher={MDPI}
+}
+
+@article{vu4632174deep,
+  title={A Deep Learning Approach for Solving the Stationary Compositional Two-Phase Equilibrium Problems},
+  author={Vu, Duc Thach Son and Ren, Weiqing},
+  journal={Available at SSRN 4632174}
+}
+
+@article{wu2024enhancing,
+  title={Enhancing the accuracy of physics-informed neural network surrogates in flash calculations using sparse grid guidance},
+  author={Wu, Yuanqing and Sun, Shuyu},
+  journal={Fluid Phase Equilibria},
+  volume={578},
+  pages={113984},
+  year={2024},
+  publisher={Elsevier}
+}

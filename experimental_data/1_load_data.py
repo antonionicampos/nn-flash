@@ -64,4 +64,4 @@ for filename in glob.glob("*.json"):
 
                         data.append(info)
 
-pd.DataFrame.from_records(data).to_csv("raw_data.csv", index=False)
+pd.DataFrame.from_records(data).to_csv("experimental_data\\raw_data.csv", index=False)

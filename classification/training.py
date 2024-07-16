@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from classification.mlp.models import MLPClassifier
 from tqdm.notebook import tqdm
+from typing import List, Any, Dict
 
 FEATURES_NAMES = [
     "zN2",
@@ -42,13 +43,21 @@ def normalize(data):
 
 def preprocessing(data):
     data[FEATURES_NAMES[:-2]] = data[FEATURES_NAMES[:-2]] / 100.0
-    data[["P", "T"]] = normalize(data[["P", "T"]])
+    # data[["P", "T"]] = normalize(data[["P", "T"]])
+
+    # P_sample (min, max): (10, 450)
+    # T_sample (min, max): (150, 1125)
+    data["P"] = (data["P"] - 10.0) / (450.0 - 10.0)
+    data["T"] = (data["T"] - 150.0) / (1125.0 - 150.0)
+
     features = data[FEATURES_NAMES].copy()
     labels = pd.get_dummies(data["class"], dtype=np.float32)
     return features, labels
 
 
 def training_model(train_files, valid_files, **kwargs):
+    model_id = kwargs.pop("model_id")
+
     learning_rate = 0.001
     epochs = 500
     batch_size = 32
@@ -56,7 +65,11 @@ def training_model(train_files, valid_files, **kwargs):
     pbar = tqdm(total=len(train_files))
     results = []
 
+    print(f"Modelo: {kwargs}")
     for train_f, valid_f in zip(train_files, valid_files):
+        description = train_f.split("\\")[-1].split(".")[0]
+        pbar.set_description(f"model: {model_id}, {description}")
+
         train_data = pd.read_csv(train_f)
         valid_data = pd.read_csv(valid_f)
 
@@ -80,7 +93,7 @@ def training_model(train_files, valid_files, **kwargs):
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         callbacks = [
             tf.keras.callbacks.ReduceLROnPlateau(),
-            tf.keras.callbacks.EarlyStopping(patience=10),
+            tf.keras.callbacks.EarlyStopping(min_delta=0.005, patience=10),
         ]
         model = MLPClassifier(**kwargs)
         model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
@@ -89,18 +102,23 @@ def training_model(train_files, valid_files, **kwargs):
             epochs=epochs,
             validation_data=valid_ds,
             callbacks=callbacks,
-            verbose=0,
+            verbose=1,
         )
-        results.append((model, history))
-        description = train_f.split("\\")[-1].split(".")[0]
-        pbar.set_description(description)
+        results.append(
+            {
+                "model_id": model_id,
+                "data": description.split("\\")[-1],
+                "model": model,
+                "history": history,
+            }
+        )
         pbar.update()
-
+    pbar.close()
     return results
 
 
-def training_history(results):
-    histories = [r[1] for r in results]
+def training_history(results: List[List[Dict[str, Any]]], model_id: int):
+    histories = [r["history"] for r in results[model_id]]
     f, axs = plt.subplots(len(histories), 2, figsize=(7, 15), sharex=True)
 
     for i, history in enumerate(histories):
@@ -114,39 +132,14 @@ def training_history(results):
         axs[i, 0].plot(actual_epochs, val_loss, label="val_loss")
         axs[i, 0].legend(prop={"size": 8})
         axs[i, 0].grid()
-        axs[i, 0].set_ylabel("Cross Entropy")
+        axs[i, 0].set_ylabel("Entropia Cruzada")
 
         axs[i, 1].plot(actual_epochs, acc, label="loss")
         axs[i, 1].plot(actual_epochs, val_acc, label="val_loss")
         axs[i, 1].legend(prop={"size": 8})
         axs[i, 1].grid()
         axs[i, 1].axhline(1.0, color="green")
-        axs[i, 1].set_ylabel("Accuracy")
+        axs[i, 1].set_ylabel("Exatidão")
 
     f.tight_layout()
     plt.show()
-
-
-def performance_evaluation(results, valid_files):
-    m1 = tf.keras.metrics.CategoricalAccuracy()
-    m2 = tf.keras.metrics.F1Score()
-
-    accuracy = np.empty(shape=(10, len(results)))
-    f1_score = np.empty(shape=(10, 3, len(results)))
-
-    for i, res in enumerate(results):
-        models = [r[0] for r in res]
-
-        for j, (model, valid_f) in enumerate(zip(models, valid_files)):
-            valid_data = pd.read_csv(valid_f)
-            valid_features, valid_labels = preprocessing(valid_data)
-
-            logits = model(valid_features.values)
-            probs = tf.nn.softmax(logits)
-            m1.update_state(valid_labels.values, probs)
-            m2.update_state(valid_labels.values, probs)
-
-            accuracy[j, i] = m1.result().numpy()
-            f1_score[j, :, i] = m2.result().numpy().reshape(1, -1)
-
-    return {"accuracy": accuracy, "f1_score": f1_score}

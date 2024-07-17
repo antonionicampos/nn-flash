@@ -7,6 +7,9 @@ from neqsim.thermo.thermoTools import dataFrame
 from neqsim.thermo import TPflash
 from typing import Dict
 
+
+pd.set_option("future.no_silent_downcasting", True)
+
 COMPONENTS = {
     "zN2": "nitrogen",
     "zCO2": "CO2",

@@ -90,6 +90,8 @@ def roc_analysis(
     valid_files: List[str],
     model_id: int,
     figsize: Tuple[int] = (15, 5),
+    xlim: Tuple[float] = (),
+    ylim: Tuple[float] = (),
 ):
     n_folds = len(results[model_id])
 
@@ -152,5 +154,11 @@ def roc_analysis(
         )
         axs[label].legend(loc="lower right", prop={"size": 8})
         axs[label].grid()
+
+        if xlim:
+            axs[label].set_xlim(xlim)
+
+        if ylim:
+            axs[label].set_ylim(ylim)
     f.tight_layout()
     plt.show()

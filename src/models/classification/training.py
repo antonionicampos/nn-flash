@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from classification.mlp.models import MLPClassifier
+from classification.models import NeuralNetClassifier
 from tqdm.notebook import tqdm
 from typing import List, Any, Dict
 
@@ -37,21 +37,17 @@ FEATURES_NAMES = [
 ]
 
 
-def normalize(data):
-    return (data - data.min(axis=0)) / (data.max(axis=0) - data.min(axis=0))
-
-
 def preprocessing(data):
-    data[FEATURES_NAMES[:-2]] = data[FEATURES_NAMES[:-2]] / 100.0
-    # data[["P", "T"]] = normalize(data[["P", "T"]])
+    processed_data = data.copy()
+    processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
 
     # P_sample (min, max): (10, 450)
     # T_sample (min, max): (150, 1125)
-    data["P"] = (data["P"] - 10.0) / (450.0 - 10.0)
-    data["T"] = (data["T"] - 150.0) / (1125.0 - 150.0)
+    processed_data["P"] = (processed_data["P"] - 10.0) / (450.0 - 10.0)
+    processed_data["T"] = (processed_data["T"] - 150.0) / (1125.0 - 150.0)
 
-    features = data[FEATURES_NAMES].copy()
-    labels = pd.get_dummies(data["class"], dtype=np.float32)
+    features = processed_data[FEATURES_NAMES].copy()
+    labels = pd.get_dummies(processed_data["class"], dtype=np.float32)
     return features, labels
 
 
@@ -100,7 +96,7 @@ def training_model(train_files, valid_files, **kwargs):
             tf.keras.callbacks.ReduceLROnPlateau(),
             tf.keras.callbacks.EarlyStopping(min_delta=0.005, patience=10),
         ]
-        model = MLPClassifier(**arch_params)
+        model = NeuralNetClassifier(**arch_params)
         model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
         history = model.fit(
             train_ds,
@@ -151,3 +147,8 @@ def training_history(results: List[List[Dict[str, Any]]], model_id: int):
 
     f.tight_layout()
     plt.show()
+
+
+def model_parameters_size(model: tf.keras.Model):
+    parameters = [params.numpy().flatten().shape[0] for params in model.trainable_variables]
+    return np.prod(parameters)

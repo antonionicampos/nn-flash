@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from classification.training import preprocessing
+from classification.training import preprocessing, model_parameters_size
 from scipy.stats import gmean
 from sklearn.metrics import (
     confusion_matrix as sklearn_confusion_matrix,
@@ -59,6 +59,10 @@ def confusion_matrix(results: List[List[Dict[str, Any]]], valid_files: List[str]
     return confusion_matrices
 
 
+def confusion_matrix_plot(results: List[List[Dict[str, Any]]], valid_files: List[str]):
+    pass
+
+
 def performance_indices(results: List[List[Dict[str, Any]]], valid_files: List[str]):
     num_folds = len(valid_files)
     num_models = len(results)
@@ -82,7 +86,41 @@ def performance_indices(results: List[List[Dict[str, Any]]], valid_files: List[s
                 sensitivity[i] = cm[i, i] / cm[i, :].sum()
             sp_indexes[fold, model] = np.sqrt(np.mean(sensitivity) * gmean(sensitivity))
 
-    return {"accucary": accuracies, "sp_index": sp_indexes}
+    cross_entropy_matrix = np.zeros((num_folds, num_models))
+    bic = np.zeros((num_folds, num_models))
+    aic = np.zeros((num_folds, num_models))
+    for i, models in enumerate(results):
+        for j, (result, valid_f) in enumerate(zip(models, valid_files)):
+            valid_data = pd.read_csv(valid_f)
+            valid_features, valid_labels = preprocessing(valid_data)
+
+            X_valid = tf.convert_to_tensor(valid_features)
+            y_valid = tf.convert_to_tensor(valid_labels)
+
+            model = result["model"]
+            logits = model(X_valid)
+            probs = tf.nn.softmax(logits)
+
+            # Cross-Entropy
+            cross_entropy = tf.keras.losses.categorical_crossentropy(y_valid, probs)
+            cross_entropy_matrix[j, i] = tf.reduce_mean(cross_entropy)
+
+            # BIC (Bayesian Information Criterion)
+            # AIC (Akaike Information Criterion)
+            n_params = model_parameters_size(model)
+            n_samples = valid_data.shape[0]
+            likelihood = -tf.reduce_mean(cross_entropy)
+
+            bic = n_params * np.log(n_samples) - 2 * np.log(likelihood)
+            aic = 2 * n_params - 2 * np.log(likelihood)
+
+    return {
+        "accucary": accuracies,
+        "sp_index": sp_indexes,
+        "cross_entropy": cross_entropy_matrix,
+        "bic": bic,
+        "aic": aic,
+    }
 
 
 def roc_analysis(

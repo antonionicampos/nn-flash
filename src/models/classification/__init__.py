@@ -2,8 +2,8 @@ import tensorflow as tf
 
 
 class NeuralNetClassifier(tf.keras.Model):
-    def __init__(self, hidden_units=[32], activation=tf.keras.activations.relu):
-        super().__init__()
+    def __init__(self, hidden_units=[32], activation="relu", *args, **kwargs):
+        super(NeuralNetClassifier, self).__init__(*args, **kwargs)
         self.hiddens = [
             tf.keras.layers.Dense(units, activation=activation, name=f"dense{i+1}")
             for i, units in enumerate(hidden_units)

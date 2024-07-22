@@ -4,7 +4,7 @@ import os
 import tensorflow as tf
 
 from src.data.handlers import DataLoader
-from src.models.classification.models import NeuralNetClassifier
+from src.models.classification import NeuralNetClassifier
 from src.models.classification.utils import preprocessing, save_results
 from src.models.classification.inputs import hparams
 from tqdm import tqdm
@@ -12,12 +12,8 @@ from tqdm import tqdm
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 np.set_printoptions(precision=4, suppress=True)
-
-# plt.style.use("seaborn-v0_8-paper")
-# plt.style.use("styles/l3_mod.mplstyle")
-
-tf.random.set_seed(13)
 np.random.seed(13)
+tf.random.set_seed(13)
 
 
 def run_training():

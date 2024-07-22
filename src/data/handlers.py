@@ -249,8 +249,8 @@ class DataTransform:
 class CrossValidation:
     """Generate cross-validation datasets for the classification and regression problems.
 
-    Sample pressures and temperatures for classification and regression models and create cross-validation datasets 
-    using Stratified K Fold for classification taking the classes (mix, gas and oil) as stratification weights and 
+    Sample pressures and temperatures for classification and regression models and create cross-validation datasets
+    using Stratified K Fold for classification taking the classes (mix, gas and oil) as stratification weights and
     using K Fold for regression.
 
     Attributes
@@ -488,3 +488,23 @@ class CrossValidation:
                 self.logger.info(f"Train data saved on file {train_filepath}")
                 self.logger.info(f"Valid data saved on file {valid_filepath}")
                 self.logger.info(f"Test data saved on file {test_filepath}")
+
+
+class DataLoader:
+    def __init__(self, problem):
+        problem_type = ["classification", "regression"]
+        assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
+
+        data_folder = "003points"
+        data_path = os.path.join("data", "processed", "experimental", problem, data_folder)
+
+        self.train_files = glob.glob(os.path.join(data_path, "train_*.csv"))
+        self.valid_files = glob.glob(os.path.join(data_path, "valid_*.csv"))
+        self.test_files = glob.glob(os.path.join(data_path, "test_*.csv"))
+
+    def load_cross_validation_datasets(self):
+        return {
+            "train": [pd.read_csv(file) for file in self.train_files],
+            "valid": [pd.read_csv(file) for file in self.valid_files],
+            "test": [pd.read_csv(file) for file in self.test_files],
+        }

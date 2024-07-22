@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from classification.training import preprocessing, model_parameters_size
+from models.classification.utils import preprocessing, model_parameters_size
 from scipy.stats import gmean
 from sklearn.metrics import (
     confusion_matrix as sklearn_confusion_matrix,

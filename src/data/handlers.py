@@ -491,11 +491,11 @@ class CrossValidation:
 
 
 class DataLoader:
-    def __init__(self, problem):
+    def __init__(self, problem, samples_per_composition):
         problem_type = ["classification", "regression"]
         assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
 
-        data_folder = "003points"
+        data_folder = f"{samples_per_composition:3d}points"
         data_path = os.path.join("data", "processed", "experimental", problem, data_folder)
 
         self.train_files = glob.glob(os.path.join(data_path, "train_*.csv"))

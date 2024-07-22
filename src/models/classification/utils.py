@@ -1,9 +1,13 @@
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
+import pickle
 import tensorflow as tf
 
 from typing import List, Any, Dict
+from src.models.classification import NeuralNetClassifier
 from src.utils.constants import FEATURES_NAMES, P_MIN_MAX, T_MIN_MAX
 
 
@@ -21,12 +25,84 @@ def preprocessing(data):
     return features, labels
 
 
-def save_results(results):
-    pass
+def load_pickle(filepath):
+    with open(filepath, "rb") as f:
+        obj = pickle.load(f)
+    return obj
 
 
-def load_results():
-    pass
+def save_pickle(filepath, obj):
+    with open(filepath, "wb") as f:
+        pickle.dump(obj, f)
+
+
+def save_training_models(results):
+    """Save classification models training results
+
+    Parameters
+    ----------
+    results : dict
+        Model training results structure. Format below:
+        {
+            "<MODEL_NAME>": {
+                "id": <UNIQUE_ID>,
+                "arch": {"activation": tf.keras.activations.Activation, "hidden_units": List[int]},
+                "opt": {"batch_size": int, "epochs": int, "lr": float}
+                "folds": [
+                    {"fold": int, "history": tf.keras.callbacks.History, "model": tf.keras.Model}
+                ]
+            }
+        }
+    """
+    results_folder = os.path.join("src", "models", "classification", "saved_models")
+    if not os.path.isdir(results_folder):
+        os.mkdir(results_folder)
+
+    for model_name, model_results in results.items():
+        model_folder = os.path.join(results_folder, model_name)
+        if not os.path.isdir(model_folder):
+            os.mkdir(model_folder)
+
+        folds = model_results.pop("folds")
+
+        # Saving "id", "arch", "opt" objects
+        with open(os.path.join(model_folder, f"model_obj.pickle"), "wb") as f:
+            pickle.dump(model_results, f)
+
+        for fold_results in folds:
+            fold = fold_results["fold"]
+            history = fold_results["history"]
+            model = fold_results["model"]
+
+            # Saving tf.keras.callbacks.History object
+            with open(os.path.join(model_folder, f"history_fold={fold}.pickle"), "wb") as f:
+                pickle.dump(history, f)
+
+            # Saving tf.keras.Model object
+            model.save_weights(os.path.join(model_folder, f"model_fold={fold}.weights.h5"))
+
+
+def load_training_models():
+    """Load classification models training results"""
+    n_folds = 10
+    results = {}
+    results_folder = os.path.join("src", "models", "classification", "saved_models")
+
+    for folder in glob.glob(os.path.join(results_folder, "*")):
+        folds = []
+        model_name = folder.split("\\")[-1]
+        model_obj = load_pickle(os.path.join(folder, "model_obj.pickle"))
+        arch_params = model_obj["arch"]
+
+        for fold in np.arange(n_folds):
+            model = NeuralNetClassifier(**arch_params)
+            model.load_weights(os.path.join(folder, f"model_fold={fold+1}.weights.h5"))
+            history = load_pickle(os.path.join(folder, f"history_fold={fold+1}.pickle"))
+            folds.append({"fold": fold + 1, "history": history, "model": model})
+
+        results[model_name] = {"folds": folds, **model_obj}
+
+    return results
 
 
 def training_history(results: List[List[Dict[str, Any]]], model_id: int):

@@ -4,6 +4,7 @@ import os
 import textwrap
 
 from src.data.handlers import DataTransform, CrossValidation
+from src.models.classification.train_models import run_training
 
 
 parser = argparse.ArgumentParser(
@@ -86,3 +87,4 @@ if __name__ == "__main__":
 
     if args.training:
         logger.info("Starting training models")
+        run_training()

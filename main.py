@@ -1,10 +1,14 @@
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
 import argparse
 import logging
-import os
 import textwrap
 
 from src.data.handlers import DataTransform, CrossValidation
 from src.models.classification.train_models import run_training
+from src.models.classification.utils import load_training_models
 
 
 parser = argparse.ArgumentParser(
@@ -31,6 +35,8 @@ neqsim_logger.propagate = False
 logger_params = {"format": "[%(asctime)s] %(levelname)s %(name)s:%(lineno)3d | %(message)s", "filename": logs_filepath}
 
 if __name__ == "__main__":
+    samples_per_composition = 3
+    
     parser.add_argument(
         "-r",
         "--read",
@@ -75,8 +81,6 @@ if __name__ == "__main__":
         data_transform.PT_phase_envelope_data_filter(savefig=True)
 
     if args.cross_validation:
-        samples_per_composition = 3
-        
         logger.info("Starting create cross-validation data")
         cv_data = CrossValidation(data_folder)
 
@@ -88,3 +92,7 @@ if __name__ == "__main__":
     if args.training:
         logger.info("Starting training models")
         run_training()
+
+        from pprint import pprint
+
+        pprint(load_training_models())

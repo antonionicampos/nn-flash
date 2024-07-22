@@ -1,0 +1,31 @@
+FEATURES_NAMES = [
+    "zN2",
+    "zCO2",
+    "zC1",
+    "zC2",
+    "zC3",
+    "zIC4",
+    "zNC4",
+    "zIC5",
+    "zNC5",
+    "zC6",
+    "zC7",
+    "zC8",
+    "zC9",
+    "zC10",
+    "zC11",
+    "zC12",
+    "zC13",
+    "zC14",
+    "zC15",
+    "zC16",
+    "zC17",
+    "zC18",
+    "zC19",
+    "zC20",
+    "P",
+    "T",
+]
+TARGET_NAMES = ["Gas", "Mix", "Oil"]
+P_MIN_MAX = [10, 450]
+T_MIN_MAX = [150, 1125]

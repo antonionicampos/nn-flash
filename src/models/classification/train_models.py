@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import os
+import pandas as pd
 import tensorflow as tf
 
 from datetime import datetime
@@ -15,15 +16,15 @@ np.random.seed(13)
 tf.random.set_seed(13)
 
 
-def run_training():
+def run_training(samples_per_composition: int):
     logger = logging.getLogger(__name__)
 
-    data_loader = DataLoader(problem="classification")
+    data_loader = DataLoader(problem="classification", samples_per_composition=samples_per_composition)
     cv_data = data_loader.load_cross_validation_datasets()
 
     train_data, valid_data = cv_data["train"], cv_data["valid"]
 
-    results = {}
+    results = {"samples_per_composition": samples_per_composition}
     training_start = datetime.now()
     for hp in hparams:
         model_name = hp["model_name"]
@@ -49,7 +50,7 @@ def run_training():
         training_model_start = datetime.now()
         pbar = tqdm(total=len(train_data))
         for fold, (train, valid) in enumerate(zip(train_data, valid_data)):
-            pbar.set_description(f"Fold {fold+1} dataset")
+            pbar.set_description(f"Train using fold {fold+1} dataset")
             logger.info(f"Fold {fold+1} dataset")
 
             train_features, train_labels = preprocessing(train)
@@ -70,15 +71,15 @@ def run_training():
             ]
             model = NeuralNetClassifier(**arch_params)
             model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
-            history = model.fit(
+            h = model.fit(
                 train_ds,
                 epochs=epochs,
                 validation_data=valid_ds,
                 callbacks=callbacks,
                 verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
             )
-            folds.append({"fold": fold + 1, "model": model, "history": history.history})
-            logger.info({k: np.round(v[-1], decimals=4) for k, v in history.history.items()})
+            folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
+            logger.info({k: np.round(v[-1], decimals=4) for k, v in h.history.items()})
             pbar.update()
 
         pbar.close()

@@ -72,6 +72,17 @@ NEQSIM_COMPONENTS = {
 
 
 def create_fluid(composition: Dict[str, float]):
+    """ Create NeqSim fluid adding its components and fractions.
+    
+    Parameters
+    ----------
+    composition : Dict[str, float]
+        fluid components with its fractions
+
+    Returns
+    -------
+        NeqSim fluid.
+    """
     fluid = neqsim.thermo.fluid("pr")
     for component, fraction in composition.items():
         fluid.addComponent(NEQSIM_COMPONENTS[component], fraction)
@@ -114,8 +125,6 @@ class DataTransform:
         convert raw JSON file to raw CSV file.
     transform_raw_data()
         sequence of data processing (listed above).
-    create_fluid(composition: Dict[str, float])
-        create NeqSim fluid adding its components and fractions.
     PT_phase_envelope_data_filter(self, savefig: bool = False)
         remove compositions that phase envelope algorithm not converge.
     """
@@ -491,11 +500,11 @@ class CrossValidation:
 
 
 class DataLoader:
-    def __init__(self, problem, samples_per_composition):
+    def __init__(self, problem: str, samples_per_composition: int):
         problem_type = ["classification", "regression"]
         assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
 
-        data_folder = f"{samples_per_composition:3d}points"
+        data_folder = f"{samples_per_composition:03d}points"
         data_path = os.path.join("data", "processed", "experimental", problem, data_folder)
 
         self.train_files = glob.glob(os.path.join(data_path, "train_*.csv"))

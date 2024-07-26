@@ -7,8 +7,9 @@ import logging
 import textwrap
 
 from src.data.handlers import DataTransform, CrossValidation
+from src.models.classification.evaluate_models import Analysis
 from src.models.classification.train_models import run_training
-from src.models.classification.utils import load_training_models
+from src.visualization.classification import Viz
 
 
 parser = argparse.ArgumentParser(
@@ -57,14 +58,44 @@ if __name__ == "__main__":
         action="store_true",
         help="Create CV datasets from processed data",
     )
-    parser.add_argument("-t", "--training", default=None, action="store_true", help="Do train step")
-    parser.add_argument("-a", "--analysis", default=None, action="store_true", help="Do Analysis Step")
-    parser.add_argument("-w", "--warning", default=None, action="store_true", help="Run in WARNING mode")
-    parser.add_argument("-v", "--verbose", default=None, action="store_true", help="Run in DEBUG mode")
+    parser.add_argument(
+        "-t",
+        "--training",
+        default=None,
+        action="store_true",
+        help="Do train step",
+    )
+    parser.add_argument(
+        "-a",
+        "--analysis",
+        default=None,
+        action="store_true",
+        help="Do Analysis Step",
+    )
+    parser.add_argument(
+        "-viz",
+        "--visualization",
+        default=None,
+        action="store_true",
+        help="Create and save visualizations",
+    )
+    parser.add_argument(
+        "-w",
+        "--warning",
+        default=None,
+        action="store_true",
+        help="Run in WARNING mode",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        default=None,
+        action="store_true",
+        help="Run in DEBUG mode",
+    )
 
     args = parser.parse_args()
 
-    print(args)
     samples_per_composition = int(args.samples_per_composition)
 
     if args.verbose:
@@ -102,6 +133,10 @@ if __name__ == "__main__":
         run_training(samples_per_composition=samples_per_composition)
 
     if args.analysis:
-        from pprint import pprint
+        analysis = Analysis(samples_per_composition=samples_per_composition)
+        analysis.evaluate()
 
-        pprint(load_training_models(samples_per_composition=samples_per_composition))
+    if args.visualization:
+        viz = Viz(samples_per_composition=samples_per_composition)
+        # viz.errorbar_plot(indices_names=["sp_index", "cross_entropy", "accuracy"])
+        viz.models_table()

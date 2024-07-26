@@ -1,5 +1,6 @@
 data/*
 src/models/classification/saved_models/*
+src/models/classification/saved_performance_indices/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

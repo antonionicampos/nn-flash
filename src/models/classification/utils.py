@@ -13,7 +13,6 @@ from src.models.classification import NeuralNetClassifier
 from src.utils.constants import FEATURES_NAMES, P_MIN_MAX, T_MIN_MAX, TARGET_NAMES
 
 
-# Training functions
 def preprocessing(data):
     processed_data = data.copy()
     processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
@@ -26,112 +25,6 @@ def preprocessing(data):
     features = processed_data[FEATURES_NAMES].copy()
     labels = pd.get_dummies(processed_data["class"], dtype=np.float32)
     return features, labels
-
-
-def load_pickle(filepath):
-    with open(filepath, "rb") as f:
-        obj = pickle.load(f)
-    return obj
-
-
-def save_pickle(filepath, obj):
-    with open(filepath, "wb") as f:
-        pickle.dump(obj, f)
-
-
-def save_training_models(results):
-    """Save classification models training results
-
-    Parameters
-    ----------
-    results : dict
-        Model training results structure. Format below:
-        {
-            "samples_per_composition": int,
-            "outputs": [
-                {
-                    "model_id": int,
-                    "model_name": str,
-                    "arch": {
-                        "hidden_units": List[int],
-                        "activation": str,
-                    },
-                    "opt": {"lr": float, "epochs": int, "batch_size": int},
-                    "folds": [
-                        {
-                            "fold": int,
-                            "model": tf.keras.Model,
-                            "history": tf.keras.callbacks.History
-                        },
-                        ...
-                    ]
-                },
-                ...
-            ]
-        }
-    """
-    samples_per_composition = results.pop("samples_per_composition")
-    results_folder = os.path.join(
-        "src",
-        "models",
-        "classification",
-        "saved_models",
-        f"{samples_per_composition:03d}points",
-    )
-    if not os.path.isdir(results_folder):
-        os.makedirs(results_folder)
-
-    for output in results["outputs"]:
-        model_folder = os.path.join(results_folder, output["model_name"])
-        if not os.path.isdir(model_folder):
-            os.mkdir(model_folder)
-
-        folds = output.pop("folds")
-
-        # Saving "id", "arch", "opt" objects
-        save_pickle(os.path.join(model_folder, "model_info.pickle"), output)
-
-        for fold_results in folds:
-            fold = fold_results["fold"]
-            history = fold_results["history"]
-            model = fold_results["model"]
-
-            fold_folder = os.path.join(model_folder, f"Fold{fold}")
-            os.mkdir(fold_folder)
-
-            # Saving tf.keras.callbacks.History object to CSV file
-            history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
-
-            # Saving tf.keras.Model weights
-            model.save(os.path.join(fold_folder, "model.keras"))
-
-
-def load_training_models(samples_per_composition: int):
-    """Load classification models training results"""
-    n_folds = 10
-    results = {"samples_per_composition": samples_per_composition}
-    results_folder = os.path.join(
-        "src",
-        "models",
-        "classification",
-        "saved_models",
-        f"{samples_per_composition:03d}points",
-    )
-
-    model_results = []
-    for folder in glob.glob(os.path.join(results_folder, "*")):
-        folds = []
-        model_obj = load_pickle(os.path.join(folder, "model_info.pickle"))
-
-        for fold in np.arange(n_folds):
-            model = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "model.keras"))
-            history = pd.read_csv(os.path.join(folder, f"Fold{fold+1}", "history.csv"))
-            folds.append({"fold": fold + 1, "history": history, "model": model})
-
-        model_results.append({"folds": folds, **model_obj})
-
-    results["outputs"] = sorted(model_results, key=lambda item: item["model_id"])
-    return results
 
 
 def training_history(results: List[List[Dict[str, Any]]], model_id: int):

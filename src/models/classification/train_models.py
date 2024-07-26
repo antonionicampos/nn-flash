@@ -1,14 +1,16 @@
+import glob
 import logging
 import numpy as np
 import os
 import pandas as pd
+import pickle
 import tensorflow as tf
 
 from datetime import datetime
 from src.data.handlers import DataLoader
 from src.models.classification import NeuralNetClassifier
-from src.models.classification.utils import preprocessing, save_training_models
-from src.models.classification.inputs import hparams
+from src.models.classification.utils import preprocessing
+from src.models.classification.models_specs import hparams
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -16,78 +18,204 @@ np.random.seed(13)
 tf.random.set_seed(13)
 
 
-def run_training(samples_per_composition: int):
-    logger = logging.getLogger(__name__)
+class Training:
 
-    data_loader = DataLoader(problem="classification", samples_per_composition=samples_per_composition)
-    cv_data = data_loader.load_cross_validation_datasets()
+    def __init__(self, samples_per_composition: int):
+        self.samples_per_composition = samples_per_composition
+        self.logger = logging.getLogger(__name__)
 
-    train_data, valid_data = cv_data["train"], cv_data["valid"]
+    def run(self):
+        """Train classification models defined on models_specs.py script
 
-    results = {"samples_per_composition": samples_per_composition}
-    training_start = datetime.now()
-    for hp in hparams:
-        model_name = hp["model_name"]
-        model_id = hp["id"]
-        arch_params = hp["arch"]
-        opt_params = hp["opt"]
+        Results format:
 
-        learning_rate = opt_params["lr"]
-        epochs = opt_params["epochs"]
-        batch_size = opt_params["batch_size"]
-
-        train_results = {"model_id": model_id, "arch": arch_params, "opt": opt_params}
-        folds = []
-
-        print(f"\nModel: {model_name}")
-        print(f"    Archtecture Params: {arch_params}")
-        print(f"    Optimization Params: {opt_params}", end="\n\n")
-
-        logger.info(f"Model: {model_name}")
-        logger.info(f"Archtecture Params: {arch_params}")
-        logger.info(f"Optimization Params: {opt_params}")
-
-        training_model_start = datetime.now()
-        pbar = tqdm(total=len(train_data))
-        for fold, (train, valid) in enumerate(zip(train_data, valid_data)):
-            pbar.set_description(f"Train using fold {fold+1} dataset")
-            logger.info(f"Fold {fold+1} dataset")
-
-            train_features, train_labels = preprocessing(train)
-            valid_features, valid_labels = preprocessing(valid)
-
-            features, labels = train_features.values, train_labels.values
-            train_ds = tf.data.Dataset.from_tensor_slices((features, labels)).shuffle(10000).batch(batch_size)
-
-            features, labels = valid_features.values, valid_labels.values
-            valid_ds = tf.data.Dataset.from_tensor_slices((features, labels)).batch(batch_size)
-
-            loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-            accuracy = tf.keras.metrics.CategoricalAccuracy()
-            optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-            callbacks = [
-                tf.keras.callbacks.ReduceLROnPlateau(),
-                tf.keras.callbacks.EarlyStopping(min_delta=0.005, patience=10),
+        results = {
+            "samples_per_composition": int,
+            "outputs": [
+                {
+                    "model_id": int,
+                    "model_name": str,
+                    "arch": {"hidden_units": List[int], "activation": str,},
+                    "opt": {"lr": float, "epochs": int, "batch_size": int},
+                    "folds": [
+                        {"fold": int, "model": tf.keras.Model, "history": tf.keras.callbacks.History},
+                        ...
+                    ]
+                },
+                ...
             ]
-            model = NeuralNetClassifier(**arch_params)
-            model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
-            h = model.fit(
-                train_ds,
-                epochs=epochs,
-                validation_data=valid_ds,
-                callbacks=callbacks,
-                verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
-            )
-            folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
-            logger.info({k: np.round(v[-1], decimals=4) for k, v in h.history.items()})
-            pbar.update()
+        }
+        """
+        data_loader = DataLoader(problem="classification", samples_per_composition=self.samples_per_composition)
+        cv_data = data_loader.load_cross_validation_datasets()
 
-        pbar.close()
-        os.system("cls")
-        train_results["folds"] = folds
-        results[model_name] = train_results
-        logger.info(f"{model_name} training elapsed Time: {datetime.now() - training_model_start}")
+        train_data, valid_data = cv_data["train"], cv_data["valid"]
 
-    logger.info("Saving models")
-    logger.info(f"Total elapsed Time: {datetime.now() - training_start}")
-    save_training_models(results)
+        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        training_start = datetime.now()
+        for hp in hparams:
+            model_name = hp["model_name"]
+            arch_params = hp["arch"]
+            opt_params = hp["opt"]
+
+            learning_rate = opt_params["lr"]
+            epochs = opt_params["epochs"]
+            batch_size = opt_params["batch_size"]
+
+            model_results = {**hp}
+            folds = []
+
+            print(f"\nModel: {model_name}")
+            print(f"    Archtecture Params: {arch_params}")
+            print(f"    Optimization Params: {opt_params}", end="\n\n")
+
+            self.logger.info(f"Model: {model_name}")
+            self.logger.info(f"Archtecture Params: {arch_params}")
+            self.logger.info(f"Optimization Params: {opt_params}")
+
+            training_model_start = datetime.now()
+            pbar = tqdm(total=len(train_data))
+            for fold, (train, valid) in enumerate(zip(train_data, valid_data)):
+                pbar.set_description(f"Train using fold {fold+1} dataset")
+                self.logger.info(f"Fold {fold+1} dataset")
+
+                train_features, train_labels = preprocessing(train)
+                valid_features, valid_labels = preprocessing(valid)
+
+                features, labels = train_features.values, train_labels.values
+                train_ds = tf.data.Dataset.from_tensor_slices((features, labels)).shuffle(10000).batch(batch_size)
+
+                features, labels = valid_features.values, valid_labels.values
+                valid_ds = tf.data.Dataset.from_tensor_slices((features, labels)).batch(batch_size)
+
+                loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+                accuracy = tf.keras.metrics.CategoricalAccuracy()
+                optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+                callbacks = [
+                    tf.keras.callbacks.ReduceLROnPlateau(),
+                    tf.keras.callbacks.EarlyStopping(min_delta=0.005, patience=10),
+                ]
+                model = NeuralNetClassifier(**arch_params)
+                model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
+                h = model.fit(
+                    train_ds,
+                    epochs=epochs,
+                    validation_data=valid_ds,
+                    callbacks=callbacks,
+                    verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
+                )
+                folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
+                self.logger.info({k: np.round(v[-1], decimals=4) for k, v in h.history.items()})
+                pbar.update()
+
+            pbar.close()
+            os.system("cls")
+            model_results["folds"] = folds
+            results["outputs"].append(model_results)
+            self.logger.info(f"{model_name} training elapsed Time: {datetime.now() - training_model_start}")
+
+        self.logger.info("Saving models")
+        self.logger.info(f"Total elapsed Time: {datetime.now() - training_start}")
+        self.save_training_models(results)
+
+    def load_pickle(self, filepath):
+        with open(filepath, "rb") as f:
+            obj = pickle.load(f)
+        return obj
+
+    def save_pickle(self, filepath, obj):
+        with open(filepath, "wb") as f:
+            pickle.dump(obj, f)
+
+    def save_training_models(self, results):
+        """Save classification models training results
+
+        Parameters
+        ----------
+        results : dict
+            Model training results structure. Format below:
+            {
+                "samples_per_composition": int,
+                "outputs": [
+                    {
+                        "model_id": int,
+                        "model_name": str,
+                        "arch": {
+                            "hidden_units": List[int],
+                            "activation": str,
+                        },
+                        "opt": {"lr": float, "epochs": int, "batch_size": int},
+                        "folds": [
+                            {
+                                "fold": int,
+                                "model": tf.keras.Model,
+                                "history": tf.keras.callbacks.History
+                            },
+                            ...
+                        ]
+                    },
+                    ...
+                ]
+            }
+        """
+        samples_per_composition = results.pop("samples_per_composition")
+        results_folder = os.path.join(
+            "src",
+            "models",
+            "classification",
+            "saved_models",
+            f"{samples_per_composition:03d}points",
+        )
+        if not os.path.isdir(results_folder):
+            os.makedirs(results_folder)
+
+        for output in results["outputs"]:
+            model_folder = os.path.join(results_folder, output["model_name"])
+            if not os.path.isdir(model_folder):
+                os.mkdir(model_folder)
+
+            folds = output.pop("folds")
+
+            # Saving "id", "arch", "opt" objects
+            self.save_pickle(os.path.join(model_folder, "model_info.pickle"), output)
+
+            for fold_results in folds:
+                fold = fold_results["fold"]
+                history = fold_results["history"]
+                model = fold_results["model"]
+
+                fold_folder = os.path.join(model_folder, f"Fold{fold}")
+                os.mkdir(fold_folder)
+
+                # Saving tf.keras.callbacks.History object to CSV file
+                history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
+
+                # Saving tf.keras.Model weights
+                model.save(os.path.join(fold_folder, "model.keras"))
+
+    def load_training_models(self, samples_per_composition: int):
+        """Load classification models training results"""
+        n_folds = 10
+        results = {"samples_per_composition": samples_per_composition}
+        results_folder = os.path.join(
+            "src",
+            "models",
+            "classification",
+            "saved_models",
+            f"{samples_per_composition:03d}points",
+        )
+
+        model_results = []
+        for folder in glob.glob(os.path.join(results_folder, "*")):
+            folds = []
+            model_obj = self.load_pickle(os.path.join(folder, "model_info.pickle"))
+
+            for fold in np.arange(n_folds):
+                model = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "model.keras"))
+                history = pd.read_csv(os.path.join(folder, f"Fold{fold+1}", "history.csv"))
+                folds.append({"fold": fold + 1, "history": history, "model": model})
+
+            model_results.append({"folds": folds, **model_obj})
+
+        results["outputs"] = sorted(model_results, key=lambda item: item["model_id"])
+        return results

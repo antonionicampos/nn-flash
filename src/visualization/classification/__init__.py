@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 
-from src.models.classification.utils import load_training_models
+from src.models.classification.train_models import Training
 from src.models.classification.evaluate_models import Analysis
 from typing import List
 
@@ -17,9 +17,10 @@ DPI = 400
 class Viz:
 
     def __init__(self, samples_per_composition: int):
+        training = Training(samples_per_composition=samples_per_composition)
         analysis = Analysis(samples_per_composition=samples_per_composition)
 
-        self.results = load_training_models(samples_per_composition=samples_per_composition)
+        self.results = training.load_training_models(samples_per_composition=samples_per_composition)
         self.indices = analysis.load_performance_indices()
         self.viz_folder = os.path.join("src", "visualization", "classification", "saved_viz")
 

@@ -8,7 +8,7 @@ import textwrap
 
 from src.data.handlers import DataTransform, CrossValidation
 from src.models.classification.evaluate_models import Analysis
-from src.models.classification.train_models import run_training
+from src.models.classification.train_models import Training
 from src.visualization.classification import Viz
 
 
@@ -130,7 +130,8 @@ if __name__ == "__main__":
 
     if args.training:
         logger.info("Starting training models")
-        run_training(samples_per_composition=samples_per_composition)
+        training = Training(samples_per_composition=samples_per_composition)
+        training.run()
 
     if args.analysis:
         analysis = Analysis(samples_per_composition=samples_per_composition)
@@ -139,4 +140,4 @@ if __name__ == "__main__":
     if args.visualization:
         viz = Viz(samples_per_composition=samples_per_composition)
         # viz.errorbar_plot(indices_names=["sp_index", "cross_entropy", "accuracy"])
-        viz.models_table()
+        # viz.models_table()

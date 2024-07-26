@@ -47,14 +47,27 @@ def save_training_models(results):
     results : dict
         Model training results structure. Format below:
         {
-            "<MODEL_NAME>": {
-                "id": <UNIQUE_ID>,
-                "arch": {"activation": tf.keras.activations.Activation, "hidden_units": List[int]},
-                "opt": {"batch_size": int, "epochs": int, "lr": float}
-                "folds": [
-                    {"fold": int, "history": tf.keras.callbacks.History, "model": tf.keras.Model}
-                ]
-            }
+            "samples_per_composition": int,
+            "outputs": [
+                {
+                    "model_id": int,
+                    "model_name": str,
+                    "arch": {
+                        "hidden_units": List[int],
+                        "activation": str,
+                    },
+                    "opt": {"lr": float, "epochs": int, "batch_size": int},
+                    "folds": [
+                        {
+                            "fold": int,
+                            "model": tf.keras.Model,
+                            "history": tf.keras.callbacks.History
+                        },
+                        ...
+                    ]
+                },
+                ...
+            ]
         }
     """
     samples_per_composition = results.pop("samples_per_composition")
@@ -68,50 +81,56 @@ def save_training_models(results):
     if not os.path.isdir(results_folder):
         os.makedirs(results_folder)
 
-    for model_name, model_results in results.items():
-        model_folder = os.path.join(results_folder, model_name)
+    for output in results["outputs"]:
+        model_folder = os.path.join(results_folder, output["model_name"])
         if not os.path.isdir(model_folder):
             os.mkdir(model_folder)
 
-        folds = model_results.pop("folds")
+        folds = output.pop("folds")
 
         # Saving "id", "arch", "opt" objects
-        save_pickle(os.path.join(model_folder, f"model_info.pickle"), model_results)
+        save_pickle(os.path.join(model_folder, "model_info.pickle"), output)
 
         for fold_results in folds:
             fold = fold_results["fold"]
             history = fold_results["history"]
             model = fold_results["model"]
 
-            # Saving tf.keras.callbacks.History object to CSV file
-            history.to_csv(os.path.join(model_folder, f"history_fold={fold}.csv"), index=False)
+            fold_folder = os.path.join(model_folder, f"Fold{fold}")
+            os.mkdir(fold_folder)
 
-            # Saving tf.keras.Model object
-            model.save_weights(os.path.join(model_folder, f"model_fold={fold}.weights.h5"))
+            # Saving tf.keras.callbacks.History object to CSV file
+            history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
+
+            # Saving tf.keras.Model weights
+            model.save(os.path.join(fold_folder, "model.keras"))
 
 
 def load_training_models(samples_per_composition: int):
     """Load classification models training results"""
     n_folds = 10
-    results = {}
+    results = {"samples_per_composition": samples_per_composition}
     results_folder = os.path.join(
-        "src", "models", "classification", "saved_models", f"{samples_per_composition:03d}points"
+        "src",
+        "models",
+        "classification",
+        "saved_models",
+        f"{samples_per_composition:03d}points",
     )
 
+    model_results = []
     for folder in glob.glob(os.path.join(results_folder, "*")):
         folds = []
-        model_name = folder.split("\\")[-1]
         model_obj = load_pickle(os.path.join(folder, "model_info.pickle"))
-        arch_params = model_obj["arch"]
 
         for fold in np.arange(n_folds):
-            model = NeuralNetClassifier(**arch_params)
-            model.load_weights(os.path.join(folder, f"model_fold={fold+1}.weights.h5"))
-            history = pd.read_csv(os.path.join(folder, f"history_fold={fold+1}.csv"))
+            model = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "model.keras"))
+            history = pd.read_csv(os.path.join(folder, f"Fold{fold+1}", "history.csv"))
             folds.append({"fold": fold + 1, "history": history, "model": model})
 
-        results[model_name] = {"folds": folds, **model_obj}
+        model_results.append({"folds": folds, **model_obj})
 
+    results["outputs"] = sorted(model_results, key=lambda item: item["model_id"])
     return results
 
 
@@ -143,14 +162,12 @@ def training_history(results: List[List[Dict[str, Any]]], model_id: int):
     plt.show()
 
 
-# Evaluation functions
 def model_parameters_size(model: tf.keras.Model):
     parameters = [params.numpy().flatten().shape[0] for params in model.trainable_variables]
     return np.prod(parameters)
 
 
-def binary_classification(model: tf.keras.Model, data_file: str, label: int):
-    data = pd.read_csv(data_file)
+def binary_classification(model: tf.keras.Model, data: pd.DataFrame, label: int):
     features, labels = preprocessing(data)
 
     X = tf.convert_to_tensor(features)
@@ -165,95 +182,6 @@ def binary_classification(model: tf.keras.Model, data_file: str, label: int):
     y_hat_class = probs[:, label]
 
     return y_class, y_hat_class
-
-
-def confusion_matrix(results: List[List[Dict[str, Any]]], valid_files: List[str]):
-    num_classes = 3
-    num_models = len(results)
-    num_folds = len(results[0])
-
-    confusion_matrices = np.zeros((num_folds, num_models, num_classes, num_classes))
-    for i, models in enumerate(results):
-        for j, (result, valid_f) in enumerate(zip(models, valid_files)):
-            valid_data = pd.read_csv(valid_f)
-            valid_features, valid_labels = preprocessing(valid_data)
-
-            X_valid = tf.convert_to_tensor(valid_features)
-            y_valid = tf.convert_to_tensor(valid_labels)
-            y_valid = tf.argmax(y_valid, axis=1)
-
-            model = result["model"]
-            logits = model(X_valid)
-            probs = tf.nn.softmax(logits)
-
-            y_valid_hat = tf.argmax(probs, axis=1)
-            confusion_matrices[j, i] = sklearn_confusion_matrix(y_valid, y_valid_hat)
-
-    return confusion_matrices
-
-
-def confusion_matrix_plot(results: List[List[Dict[str, Any]]], valid_files: List[str]):
-    pass
-
-
-def performance_indices(results: List[List[Dict[str, Any]]], valid_files: List[str]):
-    num_folds = len(valid_files)
-    num_models = len(results)
-
-    confusion_matrices = confusion_matrix(results, valid_files)
-    accuracies = np.zeros((num_folds, num_models))
-    sp_indexes = np.zeros((num_folds, num_models))
-
-    for model in np.arange(confusion_matrices.shape[1]):
-        for fold in np.arange(confusion_matrices.shape[0]):
-            cm = confusion_matrices[fold, model, :, :]
-
-            # Accuracy
-            accuracies[fold, model] = np.diag(cm).sum() / cm.sum()
-
-            # Sensitivity/Specificity
-
-            # SP Index
-            sensitivity = np.zeros([cm.shape[0]])
-            for i in np.arange(cm.shape[0]):
-                sensitivity[i] = cm[i, i] / cm[i, :].sum()
-            sp_indexes[fold, model] = np.sqrt(np.mean(sensitivity) * gmean(sensitivity))
-
-    cross_entropy_matrix = np.zeros((num_folds, num_models))
-    bic = np.zeros((num_folds, num_models))
-    aic = np.zeros((num_folds, num_models))
-    for i, models in enumerate(results):
-        for j, (result, valid_f) in enumerate(zip(models, valid_files)):
-            valid_data = pd.read_csv(valid_f)
-            valid_features, valid_labels = preprocessing(valid_data)
-
-            X_valid = tf.convert_to_tensor(valid_features)
-            y_valid = tf.convert_to_tensor(valid_labels)
-
-            model = result["model"]
-            logits = model(X_valid)
-            probs = tf.nn.softmax(logits)
-
-            # Cross-Entropy
-            cross_entropy = tf.keras.losses.categorical_crossentropy(y_valid, probs)
-            cross_entropy_matrix[j, i] = tf.reduce_mean(cross_entropy)
-
-            # BIC (Bayesian Information Criterion)
-            # AIC (Akaike Information Criterion)
-            n_params = model_parameters_size(model)
-            n_samples = valid_data.shape[0]
-            likelihood = -tf.reduce_mean(cross_entropy)
-
-            bic = n_params * np.log(n_samples) - 2 * np.log(likelihood)
-            aic = 2 * n_params - 2 * np.log(likelihood)
-
-    return {
-        "accucary": accuracies,
-        "sp_index": sp_indexes,
-        "cross_entropy": cross_entropy_matrix,
-        "bic": bic,
-        "aic": aic,
-    }
 
 
 def roc_analysis(

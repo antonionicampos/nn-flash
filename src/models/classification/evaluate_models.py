@@ -21,7 +21,7 @@ class Analysis:
 
         if not os.path.isdir(self.results_folder):
             os.makedirs(self.results_folder)
-
+            
         data_loader = DataLoader(problem="classification", samples_per_composition=samples_per_composition)
         datasets = data_loader.load_cross_validation_datasets()
 
@@ -42,8 +42,8 @@ class Analysis:
         self.bic = np.zeros((num_folds, num_models))
         self.aic = np.zeros((num_folds, num_models))
 
-    def evaluate(self):
-        # Confusion Matrix, Cross-Entropy, AIC/BIC
+    def run(self):
+        # Confusion Matrix, Cross-Entropy
         for i, models in enumerate(self.results["outputs"]):
             for j, (result, valid_data) in enumerate(zip(models["folds"], self.valid_datasets)):
                 valid_features, valid_labels = preprocessing(valid_data)

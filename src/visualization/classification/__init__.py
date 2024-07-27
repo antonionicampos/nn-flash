@@ -22,10 +22,16 @@ class Viz:
 
         self.results = training.load_training_models(samples_per_composition=samples_per_composition)
         self.indices = analysis.load_performance_indices()
-        self.viz_folder = os.path.join("src", "visualization", "classification", "saved_viz")
+        self.viz_folder = os.path.join(
+            "src",
+            "visualization",
+            "classification",
+            "saved_viz",
+            f"{samples_per_composition:03d}points",
+        )
 
         if not os.path.isdir(self.viz_folder):
-            os.mkdir(self.viz_folder)
+            os.makedirs(self.viz_folder)
 
     def models_table(self):
         outputs = self.results["outputs"]
@@ -57,4 +63,7 @@ class Viz:
 
         f.tight_layout()
         f.savefig(os.path.join(self.viz_folder, "errorbar_plot.png"), dpi=DPI)
-        plt.show()
+
+    def create(self):
+        self.models_table()
+        self.errorbar_plot(indices_names=["sp_index", "cross_entropy", "accuracy"])

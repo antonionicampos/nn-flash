@@ -6,6 +6,7 @@ import argparse
 import logging
 import textwrap
 
+from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
 from src.models.classification.evaluate_models import Analysis
 from src.models.classification.train_models import Training
@@ -26,7 +27,8 @@ parser = argparse.ArgumentParser(
 logs_folder = os.path.join("data", "logs")
 data_folder = os.path.join("data")
 
-logs_filepath = os.path.join(logs_folder, "main.log")
+dt = date.today().strftime("%Y%m%d")
+logs_filepath = os.path.join(logs_folder, f"main_{dt}.log")
 if not os.path.isdir(logs_folder):
     os.mkdir(logs_folder)
 
@@ -135,9 +137,8 @@ if __name__ == "__main__":
 
     if args.analysis:
         analysis = Analysis(samples_per_composition=samples_per_composition)
-        analysis.evaluate()
+        analysis.run()
 
     if args.visualization:
         viz = Viz(samples_per_composition=samples_per_composition)
-        # viz.errorbar_plot(indices_names=["sp_index", "cross_entropy", "accuracy"])
-        # viz.models_table()
+        viz.create()

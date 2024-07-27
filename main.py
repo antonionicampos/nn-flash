@@ -1,6 +1,6 @@
 import os
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import argparse
 import logging
@@ -33,7 +33,11 @@ if not os.path.isdir(logs_folder):
     os.mkdir(logs_folder)
 
 neqsim_logger = logging.getLogger("main")
+tensorflow_logger = logging.getLogger("tensorflow")
+matplotlib_textmanager_logger = logging.getLogger("matplotlib.texmanager")
 neqsim_logger.propagate = False
+tensorflow_logger.propagate = False
+matplotlib_textmanager_logger.propagate = False
 
 logger_params = {"format": "[%(asctime)s] %(levelname)s %(name)s:%(lineno)3d | %(message)s", "filename": logs_filepath}
 

@@ -1,5 +1,6 @@
 import glob
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
@@ -93,7 +94,7 @@ class Training:
                 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
                 callbacks = [
                     tf.keras.callbacks.ReduceLROnPlateau(),
-                    tf.keras.callbacks.EarlyStopping(min_delta=0.005, patience=10),
+                    tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=10),
                 ]
                 model = NeuralNetClassifier(**arch_params)
                 model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
@@ -117,6 +118,35 @@ class Training:
         self.logger.info("Saving models")
         self.logger.info(f"Total elapsed Time: {datetime.now() - training_start}")
         self.save_training_models(results)
+
+    def training_history(self, model_id: int):
+        results = self.load_training_models(samples_per_composition=self.samples_per_composition)
+        outputs = results["outputs"]
+        model_results = list(filter(lambda item: item["model_id"] == model_id, outputs))[0]
+
+        histories = [r["history"] for r in model_results["folds"]]
+        f, axs = plt.subplots(len(histories), 2, figsize=(7, 20), sharex=True)
+
+        for i, history in enumerate(histories):
+            loss, val_loss = history["loss"], history["val_loss"]
+            acc, val_acc = history["categorical_accuracy"], history["val_categorical_accuracy"]
+            actual_epochs = np.arange(1, len(loss) + 1)
+
+            axs[i, 0].plot(actual_epochs, loss, label="loss")
+            axs[i, 0].plot(actual_epochs, val_loss, label="val_loss")
+            axs[i, 0].legend(prop={"size": 8})
+            axs[i, 0].grid()
+            axs[i, 0].set_ylabel("Cross-Entropy")
+
+            axs[i, 1].plot(actual_epochs, acc, label="loss")
+            axs[i, 1].plot(actual_epochs, val_acc, label="val_loss")
+            axs[i, 1].legend(prop={"size": 8})
+            axs[i, 1].grid()
+            axs[i, 1].axhline(1.0, color="green")
+            axs[i, 1].set_ylabel("Accuracy")
+
+        f.tight_layout()
+        plt.show()
 
     def load_pickle(self, filepath):
         with open(filepath, "rb") as f:

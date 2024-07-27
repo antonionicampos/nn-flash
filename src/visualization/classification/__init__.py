@@ -5,12 +5,13 @@ import pandas as pd
 
 from src.models.classification.train_models import Training
 from src.models.classification.evaluate_models import Analysis
+from src.utils.constants import TARGET_NAMES
 from typing import List
 
 plt.style.use("seaborn-v0_8-paper")
 plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))
 
-
+DECIMALS = 3
 DPI = 400
 
 
@@ -44,7 +45,22 @@ class Viz:
         table.to_latex(os.path.join(self.viz_folder, "models_table.tex"), index=False)
 
     def performance_indices_table(self):
-        pass
+        model_names = [res["model_name"] for res in self.results["outputs"]]
+
+        data = {}
+        for name in self.indices.keys():
+            index = self.indices[name]
+            mean = np.round(index.mean(axis=0), DECIMALS)
+            std = np.round(index.std(axis=0), DECIMALS)
+            if len(self.indices[name].shape) == 2:
+                data[name] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean, std)]
+            elif name == "sensitivity":
+                for i, label in enumerate(TARGET_NAMES):
+                    lab = label.lower()
+                    data[f"{name}_{lab}"] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean[:, i], std[:, i])]
+
+        table = pd.DataFrame(data, index=model_names)
+        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"))
 
     def errorbar_plot(self, indices_names: List[str]):
         outputs = self.results["outputs"]
@@ -66,4 +82,5 @@ class Viz:
 
     def create(self):
         self.models_table()
-        self.errorbar_plot(indices_names=["sp_index", "cross_entropy", "accuracy"])
+        self.performance_indices_table()
+        self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])

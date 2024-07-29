@@ -1,15 +1,20 @@
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
+import tensorflow as tf
 
+from datetime import datetime
+from neqsim.thermo import TPflash
 from sklearn.metrics import RocCurveDisplay, auc
 from src.data.handlers import DataLoader
 from src.models.classification.train_models import Training
 from src.models.classification.evaluate_models import Analysis
-from src.models.classification.utils import binary_classification
-from src.utils.constants import TARGET_NAMES
-from typing import List, Dict, Tuple, Any
+from src.models.classification.utils import binary_classification, preprocessing
+from src.utils import create_fluid
+from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX
+from typing import List, Tuple
 
 plt.style.use("seaborn-v0_8-paper")
 plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))
@@ -21,11 +26,15 @@ DPI = 400
 class Viz:
 
     def __init__(self, samples_per_composition: int):
+        self.logger = logging.getLogger(__name__)
         training = Training(samples_per_composition=samples_per_composition)
         analysis = Analysis(samples_per_composition=samples_per_composition)
-        data_loader = DataLoader(problem="classification", samples_per_composition=samples_per_composition)
+        self.data_loader = DataLoader()
 
-        cv_data = data_loader.load_cross_validation_datasets()
+        cv_data = self.data_loader.load_cross_validation_datasets(
+            problem="classification",
+            samples_per_composition=samples_per_composition,
+        )
         self.valid_data = cv_data["valid"]
         self.results = training.load_training_models(samples_per_composition=samples_per_composition)
         self.indices = analysis.load_performance_indices()
@@ -86,17 +95,11 @@ class Viz:
         f.tight_layout()
         f.savefig(os.path.join(self.viz_folder, "errorbar_plot.png"), dpi=DPI)
 
-    def roc_analysis(
-        self,
-        model_id: int,
-        figsize: Tuple[int] = (15, 5),
-        xlim: Tuple[float] = (),
-        ylim: Tuple[float] = (),
-    ):
+    def roc_analysis(self, model_id: int, xlim: Tuple[float] = (), ylim: Tuple[float] = ()):
         model_info = [info for info in self.results["outputs"] if info["model_id"] == model_id][0]
         n_folds = len(model_info["folds"])
 
-        f, axs = plt.subplots(1, 3, figsize=figsize)
+        f, axs = plt.subplots(1, 3)
         for label in range(3):
             tprs, aucs = [], []
             mean_fpr = np.linspace(0, 1, 100)
@@ -158,6 +161,111 @@ class Viz:
                 axs[label].set_ylim(ylim)
         f.tight_layout()
         f.savefig(os.path.join(self.viz_folder, f"roc_analysis_model_id={model_id}.png"), dpi=DPI)
+
+    def phase_diagram(
+        self,
+        model_ids: List[int],
+        samples_per_composition: int,
+        label: int = 1,
+        xlim: Tuple[float] = (),
+        ylim: Tuple[float] = (),
+    ):
+        self.logger.info("Starting phase diagram generation")
+        datasets = self.data_loader.load_cross_validation_datasets(
+            problem="classification",
+            samples_per_composition=samples_per_composition,
+        )
+
+        data = pd.concat(datasets["train"], axis=0, ignore_index=True)
+
+        # generate phase diagram data
+        size = 500
+        fold_id = 0
+
+        # Data preparation
+        pressure = np.linspace(*P_MIN_MAX, num=size)
+        temperature = np.linspace(*T_MIN_MAX, num=size)
+
+        PP, TT = np.meshgrid(pressure, temperature)
+        P = PP.flatten().reshape(-1, 1)
+        T = TT.flatten().reshape(-1, 1)
+
+        sample = np.random.randint(data.shape[0])
+        data = data.iloc[sample : sample + 1, :].copy()
+        data = pd.DataFrame(np.tile(data.values, (size * size, 1)), columns=data.columns)
+        data[["P", "T"]] = np.c_[P, T]
+        self.logger.info(f"Sample size: {data.shape[0]}")
+
+        features, _ = preprocessing(data)
+        features = features.apply(lambda s: pd.to_numeric(s))
+
+        # Fluid preparation
+        composition = data.iloc[0, data.columns.str.startswith("z")].to_dict()
+        fluid = create_fluid(composition)
+
+        models_info = list(filter(lambda item: item["model_id"] in model_ids, self.results["outputs"]))
+        probs = []
+        models_labels = []
+        for model_info in models_info:
+            model_id = model_info["model_id"]
+            labels = []
+            # Call simulation
+            start = datetime.now()
+            for d in data.to_dict(orient="records"):
+                fluid.setPressure(d["P"], "bara")
+                fluid.setTemperature(d["T"], "K")
+
+                TPflash(fluid)
+
+                phases = [p for p in fluid.getPhases() if p]
+                label_name = ",".join([str(phase.getPhaseTypeName()) for phase in phases])
+
+                if label_name == "oil,liquid":
+                    labels.append("oil")
+                elif label_name == "gas,liquid":
+                    labels.append("gas")
+                elif label_name == "gas,oil":
+                    labels.append("mix")
+
+            labels = pd.get_dummies(pd.Series(labels)).astype(int).values
+            models_labels.append(labels)
+            self.logger.info(f"Model ID: {model_id}")
+            self.logger.info(f"Flash simulation Elapsed Time: {datetime.now() - start}")
+
+            # Call neural network model predictions
+            start = datetime.now()
+            model = model_info["folds"][fold_id]["model"]
+            logits = model(features.values)
+            probs.append(tf.nn.softmax(logits, axis=1).numpy())
+            self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
+
+        self.logger.info("Creating phase diagram and neural net probabilities heatmap plot")
+        # plot phase diagram and neural net probabilities heatmap
+        for i, model_info in enumerate(models_info):
+            model_id = model_info["model_id"]
+            model_name = model_info["model_name"]
+
+            self.logger.info(f"Model ID: {model_id}, model name: {model_name}")
+
+            f, ax = plt.subplots()
+            p = probs[i]
+            l = models_labels[i]
+
+            c = ax.contour(TT, PP, l[:, label].reshape(size, size), levels=0, colors="white")
+            pcm = ax.pcolormesh(TT, PP, p[:, label].reshape(size, size), vmin=0.0, vmax=1.0, cmap="plasma")
+            f.colorbar(pcm, ax=ax)
+
+            if xlim:
+                ax.set_xlim(xlim)  # Temperature
+            if ylim:
+                ax.set_ylim(ylim)  # Pressure
+
+            ax.legend(handles=[c])
+            ax.set_title(model_name.replace("#", "\#"))
+            ax.set_xlabel("Temperatura [K]")
+            ax.set_ylabel("Pressão [bara]")
+            f.tight_layout()
+            f.savefig(os.path.join(self.viz_folder, f"phase_diagram_model_id={model_id}.png"), dpi=DPI)
 
     def create(self):
         for model_info in self.results["outputs"]:

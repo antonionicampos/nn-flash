@@ -161,4 +161,9 @@ if __name__ == "__main__":
         viz = Viz(samples_per_composition=samples_per_composition)
         model_ids = [1, 13]
         label = 1  # Mix
-        viz.phase_diagram(model_ids=model_ids, samples_per_composition=samples_per_composition, label=label)
+        viz.phase_diagram(
+            model_ids=model_ids,
+            samples_per_composition=samples_per_composition,
+            label=label,
+            use_mean_prediction=True,
+        )

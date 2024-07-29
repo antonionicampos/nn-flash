@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 class NeuralNetClassifier(tf.keras.Model):
-    def __init__(self, hidden_units=[32], activation="relu", *args, **kwargs):
+    def __init__(self, hidden_units, activation, *args, **kwargs):
         super(NeuralNetClassifier, self).__init__(*args, **kwargs)
         self.hidden_units = hidden_units
         self.activation = activation

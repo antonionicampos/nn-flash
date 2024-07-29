@@ -9,9 +9,9 @@ import tensorflow as tf
 
 from datetime import datetime
 from src.data.handlers import DataLoader
-from src.models.classification import NeuralNetClassifier
-from src.models.classification.utils import preprocessing
-from src.models.classification.models_specs import hparams
+from src.models.regression import NeuralNet, ResidualNeuralNet
+from src.models.regression.models_specs import hparams
+from src.utils import preprocessing
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -19,14 +19,14 @@ np.random.seed(13)
 tf.random.set_seed(13)
 
 
-class Training:
+class RegressionTraining:
 
     def __init__(self, samples_per_composition: int):
         self.samples_per_composition = samples_per_composition
         self.logger = logging.getLogger(__name__)
 
     def run(self):
-        """Train classification models defined on models_specs.py script
+        """Train regression models defined on models_specs.py script
 
         Results format:
 
@@ -36,7 +36,7 @@ class Training:
                 {
                     "model_id": int,
                     "model_name": str,
-                    "arch": {"hidden_units": List[int], "activation": str,},
+                    "arch": {"hidden_units": List[int], "activation": str},
                     "opt": {"lr": float, "epochs": int, "batch_size": int},
                     "folds": [
                         {"fold": int, "model": tf.keras.Model, "history": tf.keras.callbacks.History},
@@ -49,7 +49,7 @@ class Training:
         """
         data_loader = DataLoader()
         cv_data = data_loader.load_cross_validation_datasets(
-            problem="classification",
+            problem="regression",
             samples_per_composition=self.samples_per_composition,
         )
 
@@ -83,8 +83,8 @@ class Training:
                 pbar.set_description(f"Train using fold {fold+1} dataset")
                 self.logger.info(f"Fold {fold+1} dataset")
 
-                train_features, train_labels = preprocessing(train)
-                valid_features, valid_labels = preprocessing(valid)
+                train_features, train_labels = preprocessing(train, problem="regression")
+                valid_features, valid_labels = preprocessing(valid, problem="regression")
 
                 features, labels = train_features.values, train_labels.values
                 train_ds = tf.data.Dataset.from_tensor_slices((features, labels)).shuffle(10000).batch(batch_size)
@@ -92,22 +92,23 @@ class Training:
                 features, labels = valid_features.values, valid_labels.values
                 valid_ds = tf.data.Dataset.from_tensor_slices((features, labels)).batch(batch_size)
 
-                loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
-                accuracy = tf.keras.metrics.CategoricalAccuracy()
+                loss_object = tf.keras.losses.MeanSquaredError()
+                mae = tf.keras.metrics.MeanAbsoluteError()
                 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
                 callbacks = [
                     tf.keras.callbacks.ReduceLROnPlateau(),
                     tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=10),
                 ]
-                model = NeuralNetClassifier(**arch_params)
-                model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
+                model = NeuralNet(**arch_params)
+                model.compile(optimizer=optimizer, loss=loss_object, metrics=[mae])
                 h = model.fit(
                     train_ds,
                     epochs=epochs,
                     validation_data=valid_ds,
                     callbacks=callbacks,
-                    verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
+                    verbose=1,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
                 )
+                quit()
                 folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
                 self.logger.info({k: np.round(v[-1], decimals=4) for k, v in h.history.items()})
                 pbar.update()

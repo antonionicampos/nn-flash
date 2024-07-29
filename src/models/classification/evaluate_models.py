@@ -49,7 +49,7 @@ class Analysis:
         # Confusion Matrix, Cross-Entropy
         for i, models in enumerate(self.results["outputs"]):
             for j, (result, valid_data) in enumerate(zip(models["folds"], self.valid_datasets)):
-                valid_features, valid_labels = preprocessing(valid_data)
+                valid_features, valid_labels = preprocessing(valid_data, problem="classification")
 
                 X_valid = tf.convert_to_tensor(valid_features)
                 probs = tf.convert_to_tensor(valid_labels)

@@ -11,7 +11,7 @@ def model_parameters_size(model: tf.keras.Model):
 
 
 def binary_classification(model: tf.keras.Model, data: pd.DataFrame, label: int):
-    features, labels = preprocessing(data)
+    features, labels = preprocessing(data, problem="classification")
 
     X = tf.convert_to_tensor(features)
     y = tf.convert_to_tensor(labels)

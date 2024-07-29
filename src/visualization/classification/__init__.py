@@ -197,7 +197,7 @@ class Viz:
         data[["P", "T"]] = np.c_[P, T]
         self.logger.info(f"Sample size: {data.shape[0]}")
 
-        features, _ = preprocessing(data)
+        features, _ = preprocessing(data, problem="classification")
         features = features.apply(lambda s: pd.to_numeric(s))
 
         # Fluid creation

@@ -83,8 +83,8 @@ class ClassificationTraining:
                 pbar.set_description(f"Train using fold {fold+1} dataset")
                 self.logger.info(f"Fold {fold+1} dataset")
 
-                train_features, train_labels = preprocessing(train)
-                valid_features, valid_labels = preprocessing(valid)
+                train_features, train_labels = preprocessing(train, problem="classification")
+                valid_features, valid_labels = preprocessing(valid, problem="classification")
 
                 features, labels = train_features.values, train_labels.values
                 train_ds = tf.data.Dataset.from_tensor_slices((features, labels)).shuffle(10000).batch(batch_size)

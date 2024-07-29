@@ -167,6 +167,8 @@ class Viz:
         model_ids: List[int],
         samples_per_composition: int,
         label: int = 1,
+        fold: int = 0,
+        use_mean_prediction=False,
         xlim: Tuple[float] = (),
         ylim: Tuple[float] = (),
     ):
@@ -176,11 +178,10 @@ class Viz:
             samples_per_composition=samples_per_composition,
         )
 
-        data = pd.concat(datasets["train"], axis=0, ignore_index=True)
+        data = pd.concat(datasets["test"], axis=0, ignore_index=True)
 
         # generate phase diagram data
-        size = 500
-        fold_id = 0
+        size = 400
 
         # Data preparation
         pressure = np.linspace(*P_MIN_MAX, num=size)
@@ -199,15 +200,14 @@ class Viz:
         features, _ = preprocessing(data)
         features = features.apply(lambda s: pd.to_numeric(s))
 
-        # Fluid preparation
+        # Fluid creation
         composition = data.iloc[0, data.columns.str.startswith("z")].to_dict()
         fluid = create_fluid(composition)
 
         models_info = list(filter(lambda item: item["model_id"] in model_ids, self.results["outputs"]))
-        probs = []
-        models_labels = []
         for model_info in models_info:
             model_id = model_info["model_id"]
+            model_name = model_info["model_name"]
             labels = []
             # Call simulation
             start = datetime.now()
@@ -228,44 +228,75 @@ class Viz:
                     labels.append("mix")
 
             labels = pd.get_dummies(pd.Series(labels)).astype(int).values
-            models_labels.append(labels)
-            self.logger.info(f"Model ID: {model_id}")
+
+            self.logger.info(f"Model ID: {model_id}, model name: {model_name}")
             self.logger.info(f"Flash simulation Elapsed Time: {datetime.now() - start}")
 
             # Call neural network model predictions
-            start = datetime.now()
-            model = model_info["folds"][fold_id]["model"]
-            logits = model(features.values)
-            probs.append(tf.nn.softmax(logits, axis=1).numpy())
-            self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
+            if use_mean_prediction:  # Mean and Standard Dev for all folds
+                ps = []
+                start = datetime.now()
+                for fold_info in model_info["folds"]:
+                    model = fold_info["model"]
+                    logits = model(features.values)
+                    ps.append(tf.nn.softmax(logits, axis=1).numpy())
+                self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
+                mean_p = np.array(ps).mean(axis=0)
+                std_p = np.array(ps).std(axis=0)
 
-        self.logger.info("Creating phase diagram and neural net probabilities heatmap plot")
-        # plot phase diagram and neural net probabilities heatmap
-        for i, model_info in enumerate(models_info):
-            model_id = model_info["model_id"]
-            model_name = model_info["model_name"]
+                # plot phase diagram and neural net probabilities heatmap
+                self.logger.info("Creating phase diagram and neural net probabilities heatmap plot")
+                f, axs = plt.subplots(1, 2, figsize=(14, 6))
 
-            self.logger.info(f"Model ID: {model_id}, model name: {model_name}")
+                axs[0].contour(TT, PP, labels[:, label].reshape(size, size), levels=0, colors="white")
+                axs[1].contour(TT, PP, labels[:, label].reshape(size, size), levels=0, colors="white")
+                pcm0 = axs[0].pcolormesh(TT, PP, mean_p[:, label].reshape(size, size), cmap="plasma")
+                pcm1 = axs[1].pcolormesh(TT, PP, std_p[:, label].reshape(size, size), cmap="Greys")
+                f.colorbar(pcm0, ax=axs[0])
+                f.colorbar(pcm1, ax=axs[1])
 
-            f, ax = plt.subplots()
-            p = probs[i]
-            l = models_labels[i]
+                if xlim:
+                    axs[0].set_xlim(xlim)  # Temperature
+                    axs[1].set_xlim(xlim)
+                if ylim:
+                    axs[0].set_ylim(ylim)  # Pressure
+                    axs[1].set_ylim(ylim)
 
-            c = ax.contour(TT, PP, l[:, label].reshape(size, size), levels=0, colors="white")
-            pcm = ax.pcolormesh(TT, PP, p[:, label].reshape(size, size), vmin=0.0, vmax=1.0, cmap="plasma")
-            f.colorbar(pcm, ax=ax)
+                f.suptitle(model_name.replace("#", "\#"))
+                axs[0].set_xlabel("Temperatura [K]")
+                axs[1].set_xlabel("Temperatura [K]")
+                axs[0].set_ylabel("Pressão [bara]")
+                axs[1].set_ylabel("Pressão [bara]")
+                f.tight_layout()
+                f.savefig(
+                    os.path.join(self.viz_folder, f"phase_diagram_w_uncertainty_model_id={model_id}.png"),
+                    dpi=DPI,
+                )
+            else:  # For specific fold
+                start = datetime.now()
+                model = model_info["folds"][fold]["model"]
+                logits = model(features.values)
+                probs = tf.nn.softmax(logits, axis=1).numpy()
+                self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
 
-            if xlim:
-                ax.set_xlim(xlim)  # Temperature
-            if ylim:
-                ax.set_ylim(ylim)  # Pressure
+                # plot phase diagram and neural net probabilities heatmap
+                self.logger.info("Creating phase diagram and neural net probabilities heatmap plot")
+                f, ax = plt.subplots()
+                c = ax.contour(TT, PP, labels[:, label].reshape(size, size), levels=0, colors="white")
+                pcm = ax.pcolormesh(TT, PP, probs[:, label].reshape(size, size), vmin=0.0, vmax=1.0, cmap="plasma")
+                f.colorbar(pcm, ax=ax)
 
-            ax.legend(handles=[c])
-            ax.set_title(model_name.replace("#", "\#"))
-            ax.set_xlabel("Temperatura [K]")
-            ax.set_ylabel("Pressão [bara]")
-            f.tight_layout()
-            f.savefig(os.path.join(self.viz_folder, f"phase_diagram_model_id={model_id}.png"), dpi=DPI)
+                if xlim:
+                    ax.set_xlim(xlim)  # Temperature
+                if ylim:
+                    ax.set_ylim(ylim)  # Pressure
+
+                ax.legend(handles=[c])
+                ax.set_title(model_name.replace("#", "\#"))
+                ax.set_xlabel("Temperatura [K]")
+                ax.set_ylabel("Pressão [bara]")
+                f.tight_layout()
+                f.savefig(os.path.join(self.viz_folder, f"phase_diagram_model_id={model_id}.png"), dpi=DPI)
 
     def create(self):
         for model_info in self.results["outputs"]:

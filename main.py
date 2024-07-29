@@ -10,6 +10,7 @@ from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
 from src.models.classification.evaluate_models import Analysis
 from src.models.classification.train_models import ClassificationTraining
+from src.models.regression.train_models import RegressionTraining
 from src.visualization.classification import Viz
 
 
@@ -143,8 +144,10 @@ if __name__ == "__main__":
 
     if args.training:
         logger.info("Starting train models")
-        training = ClassificationTraining(samples_per_composition=samples_per_composition)
-        training.run()
+        ctraining = ClassificationTraining(samples_per_composition=samples_per_composition)
+        rtraining = RegressionTraining(samples_per_composition=samples_per_composition)
+        # ctraining.run()
+        rtraining.run()
 
     if args.analysis:
         logger.info("Starting analyze models")

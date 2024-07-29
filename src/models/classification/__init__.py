@@ -10,12 +10,12 @@ class NeuralNetClassifier(tf.keras.Model):
             tf.keras.layers.Dense(units, activation=self.activation, name=f"dense{i+1}")
             for i, units in enumerate(self.hidden_units)
         ]
-        self.output = tf.keras.layers.Dense(3, name="output")
+        self.outputs = tf.keras.layers.Dense(3, name="output")
 
     def call(self, inputs):
         for hidden in self.hiddens:
             inputs = hidden(inputs)
-        return self.output(inputs)
+        return self.outputs(inputs)
 
     def get_config(self):
         return {"hidden_units": self.hidden_units, "activation": self.activation}

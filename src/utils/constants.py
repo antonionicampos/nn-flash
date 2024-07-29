@@ -1,3 +1,57 @@
+FLUID_COMPONENTS = [
+    "N2",
+    "CO2",
+    "C1",
+    "C2",
+    "C3",
+    "IC4",
+    "NC4",
+    "IC5",
+    "NC5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14",
+    "C15",
+    "C16",
+    "C17",
+    "C18",
+    "C19",
+    "C20",
+]
+
+NEQSIM_COMPONENTS = {
+    "zN2": "nitrogen",
+    "zCO2": "CO2",
+    "zC1": "methane",
+    "zC2": "ethane",
+    "zC3": "propane",
+    "zIC4": "i-butane",
+    "zNC4": "n-butane",
+    "zIC5": "i-pentane",
+    "zNC5": "n-pentane",
+    "zC6": "n-hexane",
+    "zC7": "n-heptane",
+    "zC8": "n-octane",
+    "zC9": "n-nonane",
+    "zC10": "nC10",
+    "zC11": "nC11",
+    "zC12": "nC12",
+    "zC13": "nC13",
+    "zC14": "nC14",
+    "zC15": "nC15",
+    "zC16": "nC16",
+    "zC17": "nC17",
+    "zC18": "nC18",
+    "zC19": "nC19",
+    "zC20": "nC20",
+}
+
 FEATURES_NAMES = [
     "zN2",
     "zCO2",
@@ -26,6 +80,7 @@ FEATURES_NAMES = [
     "P",
     "T",
 ]
+
 TARGET_NAMES = ["Gas", "Mix", "Oil"]
 P_MIN_MAX = [10, 450]
 T_MIN_MAX = [150, 1125]

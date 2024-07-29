@@ -19,7 +19,7 @@ np.random.seed(13)
 tf.random.set_seed(13)
 
 
-class Training:
+class ClassificationTraining:
 
     def __init__(self, samples_per_composition: int):
         self.samples_per_composition = samples_per_composition
@@ -36,7 +36,7 @@ class Training:
                 {
                     "model_id": int,
                     "model_name": str,
-                    "arch": {"hidden_units": List[int], "activation": str,},
+                    "arch": {"hidden_units": List[int], "activation": str},
                     "opt": {"lr": float, "epochs": int, "batch_size": int},
                     "folds": [
                         {"fold": int, "model": tf.keras.Model, "history": tf.keras.callbacks.History},

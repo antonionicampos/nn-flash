@@ -5,7 +5,7 @@ import tensorflow as tf
 from scipy.stats import gmean
 from sklearn.metrics import confusion_matrix
 from src.data.handlers import DataLoader
-from src.models.classification.train_models import Training
+from src.models.classification.train_models import ClassificationTraining
 from src.models.classification.utils import preprocessing
 
 
@@ -29,7 +29,7 @@ class Analysis:
         )
 
         self.valid_datasets = datasets["valid"]
-        self.training = Training(samples_per_composition=samples_per_composition)
+        self.training = ClassificationTraining(samples_per_composition=samples_per_composition)
         self.results = self.training.load_training_models(samples_per_composition=samples_per_composition)
 
         num_classes = 3

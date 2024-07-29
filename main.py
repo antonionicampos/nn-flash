@@ -9,7 +9,7 @@ import textwrap
 from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
 from src.models.classification.evaluate_models import Analysis
-from src.models.classification.train_models import Training
+from src.models.classification.train_models import ClassificationTraining
 from src.visualization.classification import Viz
 
 
@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
     if args.training:
         logger.info("Starting train models")
-        training = Training(samples_per_composition=samples_per_composition)
+        training = ClassificationTraining(samples_per_composition=samples_per_composition)
         training.run()
 
     if args.analysis:

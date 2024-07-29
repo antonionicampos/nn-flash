@@ -9,7 +9,7 @@ from datetime import datetime
 from neqsim.thermo import TPflash
 from sklearn.metrics import RocCurveDisplay, auc
 from src.data.handlers import DataLoader
-from src.models.classification.train_models import Training
+from src.models.classification.train_models import ClassificationTraining
 from src.models.classification.evaluate_models import Analysis
 from src.models.classification.utils import binary_classification, preprocessing
 from src.utils import create_fluid
@@ -27,7 +27,7 @@ class Viz:
 
     def __init__(self, samples_per_composition: int):
         self.logger = logging.getLogger(__name__)
-        training = Training(samples_per_composition=samples_per_composition)
+        training = ClassificationTraining(samples_per_composition=samples_per_composition)
         analysis = Analysis(samples_per_composition=samples_per_composition)
         self.data_loader = DataLoader()
 

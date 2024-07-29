@@ -81,6 +81,36 @@ FEATURES_NAMES = [
     "T",
 ]
 
+REGRESSION_TARGET_NAMES = [
+    "K_N2",
+    "K_CO2",
+    "K_C1",
+    "K_C2",
+    "K_C3",
+    "K_IC4",
+    "K_NC4",
+    "K_IC5",
+    "K_NC5",
+    "K_C6",
+    "K_C7",
+    "K_C8",
+    "K_C9",
+    "K_C10",
+    "K_C11",
+    "K_C12",
+    "K_C13",
+    "K_C14",
+    "K_C15",
+    "K_C16",
+    "K_C17",
+    "K_C18",
+    "K_C19",
+    "K_C20",
+    "nV",
+]
+
 TARGET_NAMES = ["Gas", "Mix", "Oil"]
+
 P_MIN_MAX = [10, 450]
+
 T_MIN_MAX = [150, 1125]

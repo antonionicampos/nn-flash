@@ -1,9 +1,7 @@
 import glob
 import json
 import logging
-import neqsim
 import matplotlib.pyplot as plt
-import neqsim.thermo
 import numpy as np
 import os
 import pandas as pd
@@ -11,83 +9,12 @@ import pandas as pd
 from neqsim.thermo import TPflash
 from neqsim.thermo.thermoTools import dataFrame, jNeqSim
 from sklearn.model_selection import KFold, StratifiedKFold
-from typing import Any, Dict, List
+from src.utils.constants import FLUID_COMPONENTS
+from src.utils import create_fluid
+from typing import Any, List
 
 
 pd.set_option("future.no_silent_downcasting", True)
-
-FLUID_COMPONENTS = [
-    "N2",
-    "CO2",
-    "C1",
-    "C2",
-    "C3",
-    "IC4",
-    "NC4",
-    "IC5",
-    "NC5",
-    "C6",
-    "C7",
-    "C8",
-    "C9",
-    "C10",
-    "C11",
-    "C12",
-    "C13",
-    "C14",
-    "C15",
-    "C16",
-    "C17",
-    "C18",
-    "C19",
-    "C20",
-]
-
-NEQSIM_COMPONENTS = {
-    "zN2": "nitrogen",
-    "zCO2": "CO2",
-    "zC1": "methane",
-    "zC2": "ethane",
-    "zC3": "propane",
-    "zIC4": "i-butane",
-    "zNC4": "n-butane",
-    "zIC5": "i-pentane",
-    "zNC5": "n-pentane",
-    "zC6": "n-hexane",
-    "zC7": "n-heptane",
-    "zC8": "n-octane",
-    "zC9": "n-nonane",
-    "zC10": "nC10",
-    "zC11": "nC11",
-    "zC12": "nC12",
-    "zC13": "nC13",
-    "zC14": "nC14",
-    "zC15": "nC15",
-    "zC16": "nC16",
-    "zC17": "nC17",
-    "zC18": "nC18",
-    "zC19": "nC19",
-    "zC20": "nC20",
-}
-
-
-def create_fluid(composition: Dict[str, float]):
-    """ Create NeqSim fluid adding its components and fractions.
-    
-    Parameters
-    ----------
-    composition : Dict[str, float]
-        fluid components with its fractions
-
-    Returns
-    -------
-        NeqSim fluid.
-    """
-    fluid = neqsim.thermo.fluid("pr")
-    for component, fraction in composition.items():
-        fluid.addComponent(NEQSIM_COMPONENTS[component], fraction)
-    fluid.setMixingRule("classic")  # classic will use binary kij
-    return fluid
 
 
 class DataTransform:
@@ -500,20 +427,26 @@ class CrossValidation:
 
 
 class DataLoader:
-    def __init__(self, problem: str, samples_per_composition: int):
+    def __init__(self):
+        self.processed_path = os.path.join("data", "processed")
+        self.raw_path = os.path.join("data", "raw")
+
+    def load_cross_validation_datasets(self, problem: str, samples_per_composition: int):
         problem_type = ["classification", "regression"]
         assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
 
-        data_folder = f"{samples_per_composition:03d}points"
-        data_path = os.path.join("data", "processed", "experimental", problem, data_folder)
-
-        self.train_files = glob.glob(os.path.join(data_path, "train_*.csv"))
-        self.valid_files = glob.glob(os.path.join(data_path, "valid_*.csv"))
-        self.test_files = glob.glob(os.path.join(data_path, "test_*.csv"))
-
-    def load_cross_validation_datasets(self):
+        cv_folder = os.path.join(self.processed_path, "experimental", problem, f"{samples_per_composition:03d}points")
+        self.train_files = glob.glob(os.path.join(cv_folder, "train_*.csv"))
+        self.valid_files = glob.glob(os.path.join(cv_folder, "valid_*.csv"))
+        self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))
         return {
             "train": [pd.read_csv(file) for file in self.train_files],
             "valid": [pd.read_csv(file) for file in self.valid_files],
             "test": [pd.read_csv(file) for file in self.test_files],
         }
+
+    def load_raw_dataset(self):
+        return pd.read_csv(os.path.join(self.processed_path, "thermo_processed_data.csv"))
+
+    def load_processed_dataset(self):
+        return pd.read_csv(os.path.join(self.raw_path, "raw_data.csv"))

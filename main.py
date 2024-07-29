@@ -86,6 +86,13 @@ if __name__ == "__main__":
         help="Create and save visualizations",
     )
     parser.add_argument(
+        "-p",
+        "--phase-diagram",
+        default=None,
+        action="store_true",
+        help="Create Phase Diagram for a sample composition and classification model probability",
+    )
+    parser.add_argument(
         "-w",
         "--warning",
         default=None,
@@ -135,14 +142,23 @@ if __name__ == "__main__":
         cv_data.create_datasets(model="regression", samples_per_composition=samples_per_composition)
 
     if args.training:
-        logger.info("Starting training models")
+        logger.info("Starting train models")
         training = Training(samples_per_composition=samples_per_composition)
         training.run()
 
     if args.analysis:
+        logger.info("Starting analyze models")
         analysis = Analysis(samples_per_composition=samples_per_composition)
         analysis.run()
 
     if args.visualization:
+        logger.info("Starting create visualization")
         viz = Viz(samples_per_composition=samples_per_composition)
         viz.create()
+
+    if args.phase_diagram:
+        logger.info("Starting generate Phase Diagram for classification models")
+        viz = Viz(samples_per_composition=samples_per_composition)
+        model_ids = [1, 13]
+        label = 1  # Mix
+        viz.phase_diagram(model_ids=model_ids, samples_per_composition=samples_per_composition, label=label)

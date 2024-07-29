@@ -21,9 +21,12 @@ class Analysis:
 
         if not os.path.isdir(self.results_folder):
             os.makedirs(self.results_folder)
-            
-        data_loader = DataLoader(problem="classification", samples_per_composition=samples_per_composition)
-        datasets = data_loader.load_cross_validation_datasets()
+
+        data_loader = DataLoader()
+        datasets = data_loader.load_cross_validation_datasets(
+            problem="classification",
+            samples_per_composition=samples_per_composition,
+        )
 
         self.valid_datasets = datasets["valid"]
         self.training = Training(samples_per_composition=samples_per_composition)

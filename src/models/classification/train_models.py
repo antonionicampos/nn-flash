@@ -47,8 +47,11 @@ class Training:
             ]
         }
         """
-        data_loader = DataLoader(problem="classification", samples_per_composition=self.samples_per_composition)
-        cv_data = data_loader.load_cross_validation_datasets()
+        data_loader = DataLoader()
+        cv_data = data_loader.load_cross_validation_datasets(
+            problem="classification",
+            samples_per_composition=self.samples_per_composition,
+        )
 
         train_data, valid_data = cv_data["train"], cv_data["valid"]
 

@@ -10,10 +10,10 @@ from neqsim.thermo import TPflash
 from sklearn.metrics import RocCurveDisplay, auc
 from src.data.handlers import DataLoader
 from src.models.classification.train_models import ClassificationTraining
-from src.models.classification.evaluate_models import Analysis
-from src.models.classification.utils import binary_classification, preprocessing
+from src.models.classification.evaluate_models import ClassificationAnalysis
+from src.models.classification.utils import binary_classification
 from src.utils import create_fluid
-from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX
+from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX, FEATURES_NAMES
 from typing import List, Tuple
 
 plt.style.use("seaborn-v0_8-paper")
@@ -28,15 +28,15 @@ class Viz:
     def __init__(self, samples_per_composition: int):
         self.logger = logging.getLogger(__name__)
         training = ClassificationTraining(samples_per_composition=samples_per_composition)
-        analysis = Analysis(samples_per_composition=samples_per_composition)
+        analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
         self.data_loader = DataLoader()
 
-        cv_data = self.data_loader.load_cross_validation_datasets(
+        cv_data, _ = self.data_loader.load_cross_validation_datasets(
             problem="classification",
             samples_per_composition=samples_per_composition,
         )
         self.valid_data = cv_data["valid"]
-        self.results = training.load_training_models(samples_per_composition=samples_per_composition)
+        self.results = training.load_training_models()
         self.indices = analysis.load_performance_indices()
         self.viz_folder = os.path.join(
             "src",
@@ -197,7 +197,15 @@ class Viz:
         data[["P", "T"]] = np.c_[P, T]
         self.logger.info(f"Sample size: {data.shape[0]}")
 
-        features, _ = preprocessing(data, problem="classification")
+        # Preprocessing
+        data[FEATURES_NAMES[:-2]] = data[FEATURES_NAMES[:-2]] / 100.0
+
+        P_min, P_max = P_MIN_MAX
+        T_min, T_max = T_MIN_MAX
+        data["P"] = (data["P"] - P_min) / (P_max - P_min)
+        data["T"] = (data["T"] - T_min) / (T_max - T_min)
+
+        features = data[FEATURES_NAMES].copy()
         features = features.apply(lambda s: pd.to_numeric(s))
 
         # Fluid creation

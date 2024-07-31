@@ -6,10 +6,9 @@ from scipy.stats import gmean
 from sklearn.metrics import confusion_matrix
 from src.data.handlers import DataLoader
 from src.models.classification.train_models import ClassificationTraining
-from src.models.classification.utils import preprocessing
 
 
-class Analysis:
+class ClassificationAnalysis:
     def __init__(self, samples_per_composition: int):
         self.results_folder = os.path.join(
             "src",
@@ -23,14 +22,14 @@ class Analysis:
             os.makedirs(self.results_folder)
 
         data_loader = DataLoader()
-        datasets = data_loader.load_cross_validation_datasets(
+        datasets, _ = data_loader.load_cross_validation_datasets(
             problem="classification",
             samples_per_composition=samples_per_composition,
         )
 
         self.valid_datasets = datasets["valid"]
         self.training = ClassificationTraining(samples_per_composition=samples_per_composition)
-        self.results = self.training.load_training_models(samples_per_composition=samples_per_composition)
+        self.results = self.training.load_training_models()
 
         num_classes = 3
         num_folds = len(self.valid_datasets)
@@ -49,7 +48,7 @@ class Analysis:
         # Confusion Matrix, Cross-Entropy
         for i, models in enumerate(self.results["outputs"]):
             for j, (result, valid_data) in enumerate(zip(models["folds"], self.valid_datasets)):
-                valid_features, valid_labels = preprocessing(valid_data, problem="classification")
+                valid_features, valid_labels = valid_data["features"], valid_data["targets"]
 
                 X_valid = tf.convert_to_tensor(valid_features)
                 probs = tf.convert_to_tensor(valid_labels)
@@ -80,7 +79,7 @@ class Analysis:
                 # SP Index
                 self.sp_indexes[fold, model] = np.sqrt(np.mean(sens) * gmean(sens))
 
-        self.save_performance_indices()
+        self.__save_performance_indices()
 
     def get_performance_indices(self):
         return {
@@ -91,7 +90,7 @@ class Analysis:
             "sp_index": self.sp_indexes,
         }
 
-    def save_performance_indices(self):
+    def __save_performance_indices(self):
         np.savez(os.path.join(self.results_folder, "indices.npz"), **self.get_performance_indices())
 
     def load_performance_indices(self):

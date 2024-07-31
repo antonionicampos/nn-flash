@@ -11,7 +11,6 @@ from datetime import datetime
 from src.data.handlers import DataLoader
 from src.models.regression import NeuralNet, ResidualNeuralNet
 from src.models.regression.models_specs import hparams
-from src.utils import preprocessing
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -48,7 +47,7 @@ class RegressionTraining:
         }
         """
         data_loader = DataLoader()
-        cv_data = data_loader.load_cross_validation_datasets(
+        cv_data, min_max = data_loader.load_cross_validation_datasets(
             problem="regression",
             samples_per_composition=self.samples_per_composition,
         )
@@ -66,6 +65,7 @@ class RegressionTraining:
             epochs = opt_params["epochs"]
             batch_size = opt_params["batch_size"]
 
+            model_type = arch_params.pop("type", "")
             model_results = {**hp}
             folds = []
 
@@ -81,10 +81,9 @@ class RegressionTraining:
             pbar = tqdm(total=len(train_data))
             for fold, (train, valid) in enumerate(zip(train_data, valid_data)):
                 pbar.set_description(f"Train using fold {fold+1} dataset")
-                self.logger.info(f"Fold {fold+1} dataset")
 
-                train_features, train_labels = preprocessing(train, problem="regression")
-                valid_features, valid_labels = preprocessing(valid, problem="regression")
+                train_features, train_labels = train["features"], train["targets"]
+                valid_features, valid_labels = valid["features"], valid["targets"]
 
                 features, labels = train_features.values, train_labels.values
                 train_ds = tf.data.Dataset.from_tensor_slices((features, labels)).shuffle(10000).batch(batch_size)
@@ -99,18 +98,23 @@ class RegressionTraining:
                     tf.keras.callbacks.ReduceLROnPlateau(),
                     tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=10),
                 ]
-                model = NeuralNet(**arch_params)
+
+                if model_type == "residual":
+                    model = ResidualNeuralNet(**arch_params)
+                else:
+                    model = NeuralNet(**arch_params)
+
                 model.compile(optimizer=optimizer, loss=loss_object, metrics=[mae])
                 h = model.fit(
                     train_ds,
                     epochs=epochs,
                     validation_data=valid_ds,
                     callbacks=callbacks,
-                    verbose=1,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
+                    verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
                 )
-                quit()
                 folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
-                self.logger.info({k: np.round(v[-1], decimals=4) for k, v in h.history.items()})
+                val_results = {k: np.round(v[-1], decimals=4) for k, v in h.history.items() if "val_" in k}
+                self.logger.info(f"Fold {fold+1} dataset, {val_results}")
                 pbar.update()
 
             pbar.close()
@@ -124,7 +128,7 @@ class RegressionTraining:
         self.save_training_models(results)
 
     def training_history(self, model_id: int):
-        results = self.load_training_models(samples_per_composition=self.samples_per_composition)
+        results = self.load_training_models()
         outputs = results["outputs"]
         model_results = list(filter(lambda item: item["model_id"] == model_id, outputs))[0]
 
@@ -133,21 +137,20 @@ class RegressionTraining:
 
         for i, history in enumerate(histories):
             loss, val_loss = history["loss"], history["val_loss"]
-            acc, val_acc = history["categorical_accuracy"], history["val_categorical_accuracy"]
+            acc, val_acc = history["mean_absolute_error"], history["val_mean_absolute_error"]
             actual_epochs = np.arange(1, len(loss) + 1)
 
             axs[i, 0].plot(actual_epochs, loss, label="loss")
             axs[i, 0].plot(actual_epochs, val_loss, label="val_loss")
             axs[i, 0].legend(prop={"size": 8})
             axs[i, 0].grid()
-            axs[i, 0].set_ylabel("Cross-Entropy")
+            axs[i, 0].set_ylabel("Mean Squared Error")
 
             axs[i, 1].plot(actual_epochs, acc, label="loss")
             axs[i, 1].plot(actual_epochs, val_acc, label="val_loss")
             axs[i, 1].legend(prop={"size": 8})
             axs[i, 1].grid()
-            axs[i, 1].axhline(1.0, color="green")
-            axs[i, 1].set_ylabel("Accuracy")
+            axs[i, 1].set_ylabel("Mean Absolute Error")
 
         f.tight_layout()
         plt.show()
@@ -162,7 +165,7 @@ class RegressionTraining:
             pickle.dump(obj, f)
 
     def save_training_models(self, results):
-        """Save classification models training results
+        """Save regression models training results
 
         Parameters
         ----------
@@ -196,7 +199,7 @@ class RegressionTraining:
         results_folder = os.path.join(
             "src",
             "models",
-            "classification",
+            "regression",
             "saved_models",
             f"{samples_per_composition:03d}points",
         )
@@ -219,7 +222,8 @@ class RegressionTraining:
                 model = fold_results["model"]
 
                 fold_folder = os.path.join(model_folder, f"Fold{fold}")
-                os.mkdir(fold_folder)
+                if not os.path.isdir(fold_folder):
+                    os.mkdir(fold_folder)
 
                 # Saving tf.keras.callbacks.History object to CSV file
                 history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
@@ -227,16 +231,16 @@ class RegressionTraining:
                 # Saving tf.keras.Model weights
                 model.save(os.path.join(fold_folder, "model.keras"))
 
-    def load_training_models(self, samples_per_composition: int):
-        """Load classification models training results"""
+    def load_training_models(self):
+        """Load regression models training results"""
         n_folds = 10
-        results = {"samples_per_composition": samples_per_composition}
+        results = {"samples_per_composition": self.samples_per_composition}
         results_folder = os.path.join(
             "src",
             "models",
-            "classification",
+            "regression",
             "saved_models",
-            f"{samples_per_composition:03d}points",
+            f"{self.samples_per_composition:03d}points",
         )
 
         model_results = []

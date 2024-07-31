@@ -10,7 +10,6 @@ import tensorflow as tf
 from datetime import datetime
 from src.data.handlers import DataLoader
 from src.models.classification import NeuralNetClassifier
-from src.models.classification.utils import preprocessing
 from src.models.classification.models_specs import hparams
 from tqdm import tqdm
 
@@ -48,7 +47,7 @@ class ClassificationTraining:
         }
         """
         data_loader = DataLoader()
-        cv_data = data_loader.load_cross_validation_datasets(
+        cv_data, _ = data_loader.load_cross_validation_datasets(
             problem="classification",
             samples_per_composition=self.samples_per_composition,
         )
@@ -81,10 +80,9 @@ class ClassificationTraining:
             pbar = tqdm(total=len(train_data))
             for fold, (train, valid) in enumerate(zip(train_data, valid_data)):
                 pbar.set_description(f"Train using fold {fold+1} dataset")
-                self.logger.info(f"Fold {fold+1} dataset")
 
-                train_features, train_labels = preprocessing(train, problem="classification")
-                valid_features, valid_labels = preprocessing(valid, problem="classification")
+                train_features, train_labels = train["features"], train["targets"]
+                valid_features, valid_labels = valid["features"], valid["targets"]
 
                 features, labels = train_features.values, train_labels.values
                 train_ds = tf.data.Dataset.from_tensor_slices((features, labels)).shuffle(10000).batch(batch_size)
@@ -109,7 +107,8 @@ class ClassificationTraining:
                     verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
                 )
                 folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
-                self.logger.info({k: np.round(v[-1], decimals=4) for k, v in h.history.items()})
+                val_results = {k: np.round(v[-1], decimals=4) for k, v in h.history.items() if "val_" in k}
+                self.logger.info(f"Fold {fold+1} dataset, {val_results}")
                 pbar.update()
 
             pbar.close()
@@ -123,7 +122,7 @@ class ClassificationTraining:
         self.save_training_models(results)
 
     def training_history(self, model_id: int):
-        results = self.load_training_models(samples_per_composition=self.samples_per_composition)
+        results = self.load_training_models()
         outputs = results["outputs"]
         model_results = list(filter(lambda item: item["model_id"] == model_id, outputs))[0]
 
@@ -226,16 +225,16 @@ class ClassificationTraining:
                 # Saving tf.keras.Model weights
                 model.save(os.path.join(fold_folder, "model.keras"))
 
-    def load_training_models(self, samples_per_composition: int):
+    def load_training_models(self):
         """Load classification models training results"""
         n_folds = 10
-        results = {"samples_per_composition": samples_per_composition}
+        results = {"samples_per_composition": self.samples_per_composition}
         results_folder = os.path.join(
             "src",
             "models",
             "classification",
             "saved_models",
-            f"{samples_per_composition:03d}points",
+            f"{self.samples_per_composition:03d}points",
         )
 
         model_results = []

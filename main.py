@@ -8,7 +8,7 @@ import textwrap
 
 from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
-from src.models.classification.evaluate_models import Analysis
+from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.train_models import ClassificationTraining
 from src.models.regression.train_models import RegressionTraining
 from src.visualization.classification import Viz
@@ -80,47 +80,18 @@ if __name__ == "__main__":
         help="Do Analysis Step",
     )
     parser.add_argument(
-        "-viz",
+        "-v",
         "--visualization",
         default=None,
         action="store_true",
         help="Create and save visualizations",
     )
-    parser.add_argument(
-        "-p",
-        "--phase-diagram",
-        default=None,
-        action="store_true",
-        help="Create Phase Diagram for a sample composition and classification model probability",
-    )
-    parser.add_argument(
-        "-w",
-        "--warning",
-        default=None,
-        action="store_true",
-        help="Run in WARNING mode",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        default=None,
-        action="store_true",
-        help="Run in DEBUG mode",
-    )
 
     args = parser.parse_args()
-
     samples_per_composition = int(args.samples_per_composition)
 
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG, **logger_params)
-        logging.info("Running in DEBUG mode")
-    elif args.warning:
-        logging.basicConfig(level=logging.WARNING, **logger_params)
-        logging.info("Running in WARNING mode")
-    else:
-        logging.basicConfig(level=logging.INFO, **logger_params)
-        logging.info("Running in INFO mode")
+    logging.basicConfig(level=logging.INFO, **logger_params)
+    logging.info("Running in INFO mode")
 
     logger = logging.getLogger(__name__)
 
@@ -144,26 +115,26 @@ if __name__ == "__main__":
 
     if args.training:
         logger.info("Starting train models")
-        ctraining = ClassificationTraining(samples_per_composition=samples_per_composition)
-        rtraining = RegressionTraining(samples_per_composition=samples_per_composition)
-        # ctraining.run()
-        rtraining.run()
+        classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
+        regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
+        # classification_training.run()
+        regression_training.run()
 
     if args.analysis:
         logger.info("Starting analyze models")
-        analysis = Analysis(samples_per_composition=samples_per_composition)
+        analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
         analysis.run()
 
     if args.visualization:
         logger.info("Starting create visualization")
         viz = Viz(samples_per_composition=samples_per_composition)
         viz.create()
-
-    if args.phase_diagram:
         logger.info("Starting generate Phase Diagram for classification models")
-        viz = Viz(samples_per_composition=samples_per_composition)
+
         model_ids = [1, 13]
         label = 1  # Mix
+
+        viz = Viz(samples_per_composition=samples_per_composition)
         viz.phase_diagram(
             model_ids=model_ids,
             samples_per_composition=samples_per_composition,

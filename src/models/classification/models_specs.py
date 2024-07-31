@@ -65,12 +65,12 @@ hparams = [
         "opt": {"lr": 0.0001, "epochs": 500, "batch_size": 32},
     },
     {
-        "model_name": "ANN-STAB",
+        "model_name": "Stability test [Ref 22]",
         "arch": {"hidden_units": [64, 128, 128, 128, 64], "activation": "relu"},
         "opt": {"lr": 0.0001, "epochs": 80, "batch_size": 64},
     },
     {
-        "model_name": "PTFlash Classifier",
+        "model_name": "PTFlash Classifier [Ref 19]",
         "arch": {"hidden_units": [32, 32, 32], "activation": "silu"},
         "opt": {"lr": 0.0005, "epochs": 500, "batch_size": 32},
     },

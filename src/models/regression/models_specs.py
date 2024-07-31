@@ -2,7 +2,7 @@ hparams = [
     {
         "model_name": "Modelo #1",
         "arch": {"hidden_units": [], "activation": "relu"},
-        "opt": {"lr": 0.001, "epochs": 500, "batch_size": 32},
+        "opt": {"lr": 0.005, "epochs": 500, "batch_size": 32},
     },
     {
         "model_name": "Modelo #2",
@@ -65,13 +65,13 @@ hparams = [
         "opt": {"lr": 0.0001, "epochs": 500, "batch_size": 32},
     },
     {
-        "model_name": "ANN-STAB",
+        "model_name": "Phase-Split [Ref 22]",
         "arch": {"hidden_units": [64, 128, 128, 128, 64], "activation": "relu"},
         "opt": {"lr": 0.0001, "epochs": 80, "batch_size": 64},
     },
     {
-        "model_name": "PTFlash Classifier",
-        "arch": {"hidden_units": [32, 32, 32], "activation": "silu"},
+        "model_name": "PTFlash Initializer [Ref 19]",
+        "arch": {"hidden_units": [64, 64, 64], "type": "residual"},
         "opt": {"lr": 0.0005, "epochs": 500, "batch_size": 32},
     },
 ]

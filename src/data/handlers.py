@@ -9,7 +9,14 @@ import pandas as pd
 from neqsim.thermo import TPflash
 from neqsim.thermo.thermoTools import dataFrame, jNeqSim
 from sklearn.model_selection import KFold, StratifiedKFold
-from src.utils.constants import FLUID_COMPONENTS
+from src.utils.constants import (
+    FLUID_COMPONENTS,
+    NEQSIM_COMPONENTS,
+    FEATURES_NAMES,
+    P_MIN_MAX,
+    T_MIN_MAX,
+    REGRESSION_TARGET_NAMES,
+)
 from src.utils import create_fluid
 from typing import Any, List
 
@@ -439,11 +446,44 @@ class DataLoader:
         self.train_files = glob.glob(os.path.join(cv_folder, "train_*.csv"))
         self.valid_files = glob.glob(os.path.join(cv_folder, "valid_*.csv"))
         self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))
-        return {
-            "train": [pd.read_csv(file) for file in self.train_files],
-            "valid": [pd.read_csv(file) for file in self.valid_files],
-            "test": [pd.read_csv(file) for file in self.test_files],
-        }
+
+        datasets = {"train": [], "valid": [], "test": []}
+        min_max = None
+        for train_f, valid_f, test_f in zip(self.train_files, self.valid_files, self.test_files):
+            train_features, train_targets = self.preprocessing(pd.read_csv(train_f), problem=problem)
+            valid_features, valid_targets = self.preprocessing(pd.read_csv(valid_f), problem=problem)
+            test_features, test_targets = self.preprocessing(pd.read_csv(test_f), problem=problem)
+
+            if problem == "regression":
+                min_vals, max_vals = train_targets.min(), train_targets.max()
+                min_max = [min_vals, max_vals]
+
+                train_targets = (train_targets - min_vals) / (max_vals - min_vals)
+                valid_targets = (valid_targets - min_vals) / (max_vals - min_vals)
+                test_targets = (test_targets - min_vals) / (max_vals - min_vals)
+
+            datasets["train"].append({"features": train_features, "targets": train_targets})
+            datasets["valid"].append({"features": valid_features, "targets": valid_targets})
+            datasets["test"].append({"features": test_features, "targets": test_targets})
+
+        return datasets, min_max
+
+    def preprocessing(self, data: pd.DataFrame, problem: str):
+        processed_data = data.copy()
+        processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
+
+        P_min, P_max = P_MIN_MAX
+        T_min, T_max = T_MIN_MAX
+        processed_data["P"] = (processed_data["P"] - P_min) / (P_max - P_min)
+        processed_data["T"] = (processed_data["T"] - T_min) / (T_max - T_min)
+
+        features = processed_data[FEATURES_NAMES].copy()
+
+        if problem == "classification":
+            targets = pd.get_dummies(processed_data["class"], dtype=np.float32)
+        elif problem == "regression":
+            targets = processed_data[REGRESSION_TARGET_NAMES]
+        return features, targets
 
     def load_raw_dataset(self):
         return pd.read_csv(os.path.join(self.processed_path, "thermo_processed_data.csv"))

@@ -1,5 +1,5 @@
 import neqsim
-import pandas as pd
+import numpy as np
 
 from src.utils.constants import NEQSIM_COMPONENTS
 from typing import Dict
@@ -24,5 +24,5 @@ def create_fluid(composition: Dict[str, float]):
     return fluid
 
 
-def denorm(data: pd.DataFrame, min_vals: pd.Series, max_vals: pd.Series):
+def denorm(data: np.ndarray, min_vals: np.ndarray, max_vals: np.ndarray):
     return data * (max_vals - min_vals) + min_vals

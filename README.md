@@ -1,13 +1,27 @@
 # nn-flash: Neural Networks for Flash Calculations
 
+This work aims to investigate the calculation of vapor-liquid equilibrium flash for oil reservoirs from the perspective of computational intelligence. In other words, to use data-based models to assist or replace conventional flash calculations.
 
+## Pre-requisites
+
+- Python 3.10.11
+
+## Setup
+
+From the project folder:
+
+```
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
 ## Main script help
 
 ```
 python main.py --help
 
-usage: NN Flash [-h] [-s {3,30,300}] [-r] [-cv] [-t] [-a] [-viz] [-p] [-w] [-v]
+usage: NN Flash [-h] [-s {3,30,300}] [-r] [-cv] [-t] [-a] [-v]
 
 Neural Networks for Flash Calculations.
 https://github.com/antonionicampos/nn-flash
@@ -21,9 +35,5 @@ options:
                         Create CV datasets from processed data
   -t, --training        Do train step
   -a, --analysis        Do Analysis Step
-  -viz, --visualization
-                        Create and save visualizations
-  -p, --phase-diagram   Create Phase Diagram for a sample composition and classification model probability
-  -w, --warning         Run in WARNING mode
-  -v, --verbose         Run in DEBUG mode
+  -v, --visualization   Create and save visualizations
 ```

@@ -448,7 +448,7 @@ class DataLoader:
         self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))
 
         datasets = {"train": [], "valid": [], "test": []}
-        min_max = None
+        min_max = []
         for train_f, valid_f, test_f in zip(self.train_files, self.valid_files, self.test_files):
             train_features, train_targets = self.preprocessing(pd.read_csv(train_f), problem=problem)
             valid_features, valid_targets = self.preprocessing(pd.read_csv(valid_f), problem=problem)
@@ -456,7 +456,7 @@ class DataLoader:
 
             if problem == "regression":
                 min_vals, max_vals = train_targets.min(), train_targets.max()
-                min_max = [min_vals, max_vals]
+                min_max.append([min_vals.to_numpy(), max_vals.to_numpy()])
 
                 train_targets = (train_targets - min_vals) / (max_vals - min_vals)
                 valid_targets = (valid_targets - min_vals) / (max_vals - min_vals)

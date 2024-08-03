@@ -27,6 +27,7 @@ class Viz:
 
     def __init__(self, samples_per_composition: int):
         self.logger = logging.getLogger(__name__)
+        self.samples_per_composition = samples_per_composition
         training = ClassificationTraining(samples_per_composition=samples_per_composition)
         analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
         self.data_loader = DataLoader()
@@ -99,7 +100,7 @@ class Viz:
         model_info = [info for info in self.results["outputs"] if info["model_id"] == model_id][0]
         n_folds = len(model_info["folds"])
 
-        f, axs = plt.subplots(1, 3)
+        f, axs = plt.subplots(1, 3, figsize=(12, 5))
         for label in range(3):
             tprs, aucs = [], []
             mean_fpr = np.linspace(0, 1, 100)
@@ -164,8 +165,6 @@ class Viz:
 
     def phase_diagram(
         self,
-        model_ids: List[int],
-        samples_per_composition: int,
         label: int = 1,
         fold: int = 0,
         use_mean_prediction=False,
@@ -173,12 +172,7 @@ class Viz:
         ylim: Tuple[float] = (),
     ):
         self.logger.info("Starting phase diagram generation")
-        datasets = self.data_loader.load_cross_validation_datasets(
-            problem="classification",
-            samples_per_composition=samples_per_composition,
-        )
-
-        data = pd.concat(datasets["test"], axis=0, ignore_index=True)
+        data = pd.concat([valid["features"] for valid in self.valid_data], axis=0, ignore_index=True)
 
         # generate phase diagram data
         size = 400
@@ -198,24 +192,20 @@ class Viz:
         self.logger.info(f"Sample size: {data.shape[0]}")
 
         # Preprocessing
-        data[FEATURES_NAMES[:-2]] = data[FEATURES_NAMES[:-2]] / 100.0
-
+        features = data.copy()
+        features = features.apply(lambda s: pd.to_numeric(s))
         P_min, P_max = P_MIN_MAX
         T_min, T_max = T_MIN_MAX
-        data["P"] = (data["P"] - P_min) / (P_max - P_min)
-        data["T"] = (data["T"] - T_min) / (T_max - T_min)
+        features["P"] = (features["P"] - P_min) / (P_max - P_min)
+        features["T"] = (features["T"] - T_min) / (T_max - T_min)
 
-        features = data[FEATURES_NAMES].copy()
-        features = features.apply(lambda s: pd.to_numeric(s))
-
-        # Fluid creation
         composition = data.iloc[0, data.columns.str.startswith("z")].to_dict()
-        fluid = create_fluid(composition)
+        for output in self.results["outputs"][10:]:
+            # Fluid creation
+            fluid = create_fluid(composition)
 
-        models_info = list(filter(lambda item: item["model_id"] in model_ids, self.results["outputs"]))
-        for model_info in models_info:
-            model_id = model_info["model_id"]
-            model_name = model_info["model_name"]
+            model_id = output["model_id"]
+            model_name = output["model_name"]
             labels = []
             # Call simulation
             start = datetime.now()
@@ -243,12 +233,13 @@ class Viz:
             # Call neural network model predictions
             if use_mean_prediction:  # Mean and Standard Dev for all folds
                 ps = []
-                start = datetime.now()
-                for fold_info in model_info["folds"]:
+                for fold_info in output["folds"]:
                     model = fold_info["model"]
+                    self.logger.info(f"Fold: {fold_info['fold']}")
+                    start = datetime.now()
                     logits = model(features.values)
                     ps.append(tf.nn.softmax(logits, axis=1).numpy())
-                self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
+                    self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
                 mean_p = np.array(ps).mean(axis=0)
                 std_p = np.array(ps).std(axis=0)
 
@@ -281,8 +272,8 @@ class Viz:
                     dpi=DPI,
                 )
             else:  # For specific fold
+                model = output["folds"][fold]["model"]
                 start = datetime.now()
-                model = model_info["folds"][fold]["model"]
                 logits = model(features.values)
                 probs = tf.nn.softmax(logits, axis=1).numpy()
                 self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
@@ -290,7 +281,7 @@ class Viz:
                 # plot phase diagram and neural net probabilities heatmap
                 self.logger.info("Creating phase diagram and neural net probabilities heatmap plot")
                 f, ax = plt.subplots()
-                c = ax.contour(TT, PP, labels[:, label].reshape(size, size), levels=0, colors="white")
+                ax.contour(TT, PP, labels[:, label].reshape(size, size), levels=0, colors="white")
                 pcm = ax.pcolormesh(TT, PP, probs[:, label].reshape(size, size), vmin=0.0, vmax=1.0, cmap="plasma")
                 f.colorbar(pcm, ax=ax)
 
@@ -299,16 +290,19 @@ class Viz:
                 if ylim:
                     ax.set_ylim(ylim)  # Pressure
 
-                ax.legend(handles=[c])
                 ax.set_title(model_name.replace("#", "\#"))
                 ax.set_xlabel("Temperatura [K]")
                 ax.set_ylabel("Pressão [bara]")
                 f.tight_layout()
                 f.savefig(os.path.join(self.viz_folder, f"phase_diagram_model_id={model_id}.png"), dpi=DPI)
+            plt.close("all")
 
     def create(self):
         for model_info in self.results["outputs"]:
             self.roc_analysis(model_id=model_info["model_id"])
+
         self.models_table()
         self.performance_indices_table()
         self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])
+        # self.phase_diagram(use_mean_prediction=False)
+        self.phase_diagram(use_mean_prediction=True)

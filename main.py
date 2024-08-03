@@ -10,8 +10,10 @@ from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
 from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.train_models import ClassificationTraining
+from src.models.regression.evaluate_models import RegressionAnalysis
 from src.models.regression.train_models import RegressionTraining
 from src.visualization.classification import Viz
+from src.visualization.regression import RegressionViz
 
 
 parser = argparse.ArgumentParser(
@@ -46,10 +48,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s",
         "--samples-per-composition",
-        default=3,
+        default="3",
         action="store",
         choices=["3", "30", "300"],
         help="Select dataset depending on number of P, T samples per composition sample",
+    )
+    parser.add_argument(
+        "--task",
+        default="both",
+        action="store",
+        choices=["both", "classification", "regression"],
+        help="Task(s) to run pipeline",
     )
     parser.add_argument(
         "-r",
@@ -122,22 +131,14 @@ if __name__ == "__main__":
 
     if args.analysis:
         logger.info("Starting analyze models")
-        analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
-        analysis.run()
+        classification_analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
+        regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
+        # classification_analysis.run()
+        regression_analysis.run()
 
     if args.visualization:
         logger.info("Starting create visualization")
-        viz = Viz(samples_per_composition=samples_per_composition)
-        viz.create()
-        logger.info("Starting generate Phase Diagram for classification models")
-
-        model_ids = [1, 13]
-        label = 1  # Mix
-
-        viz = Viz(samples_per_composition=samples_per_composition)
-        viz.phase_diagram(
-            model_ids=model_ids,
-            samples_per_composition=samples_per_composition,
-            label=label,
-            use_mean_prediction=True,
-        )
+        classification_viz = Viz(samples_per_composition=samples_per_composition)
+        regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
+        classification_viz.create()
+        # regression_viz.create()

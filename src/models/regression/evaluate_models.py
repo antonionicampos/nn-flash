@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from src.data.handlers import DataLoader
 from src.models.regression.train_models import RegressionTraining
+from src.utils import denorm
 
 
 class RegressionAnalysis:
@@ -25,6 +26,7 @@ class RegressionAnalysis:
             samples_per_composition=samples_per_composition,
         )
 
+        self.min_max = min_max
         self.valid_datasets = datasets["valid"]
         self.training = RegressionTraining(samples_per_composition=samples_per_composition)
         self.results = self.training.load_training_models()
@@ -43,10 +45,10 @@ class RegressionAnalysis:
                 valid_features, valid_labels = valid_data["features"], valid_data["targets"]
 
                 X_valid = tf.convert_to_tensor(valid_features)
-                Y_valid = tf.convert_to_tensor(valid_labels)
+                Y_valid = denorm(valid_labels.to_numpy(), *self.min_max[j])
 
                 model = result["model"]
-                Y_hat_valid = model(X_valid)
+                Y_hat_valid = denorm(model(X_valid).numpy(), *self.min_max[j])
 
                 self.mae[j, i] = self.mean_absolute_error(Y_valid, Y_hat_valid)
                 self.mse[j, i] = self.mean_squared_error(Y_valid, Y_hat_valid)

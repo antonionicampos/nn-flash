@@ -6,6 +6,7 @@ neqsim==2.5.29
 pandas==2.2.1
 rich==13.7.1
 scikit-learn==1.5.1
+seaborn==0.13.2
 smt==2.6.3
 tensorflow==2.13.0
 umap-learn==0.5.6

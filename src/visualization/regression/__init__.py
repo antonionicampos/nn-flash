@@ -113,7 +113,18 @@ class RegressionViz:
                     y, y_err = self.indices[name].mean(axis=0)[j, :], self.indices[name].std(axis=0)[j, :]
                     ax.errorbar(x, y, y_err, c=f"C{i}", **errorbar_kwargs)
                     ax.yaxis.grid()
-                    ax.set_xticks(x, REGRESSION_TARGET_NAMES, rotation=90, ha="center")
+
+                    def fix_ticks1(name):
+                        var, component = name.split("_")
+                        return "$" + var + "_{" + component + "}$"
+
+                    def fix_ticks2(name):
+                        char1, char2 = name[0], name[-1]
+                        return "$" + char1 + "_{" + char2 + "}$"
+
+                    ticks1 = [fix_ticks1(name) for name in REGRESSION_TARGET_NAMES[:-1]]
+                    ticks2 = [fix_ticks2(name) for name in REGRESSION_TARGET_NAMES[-1:]]
+                    ax.set_xticks(x, ticks1 + ticks2, rotation=90, ha="center")
                     ax.legend()
                 f.tight_layout()
                 f.savefig(os.path.join(self.viz_folder, f"errorbar_plot_by_target_model_id={model_id}.png"), dpi=DPI)

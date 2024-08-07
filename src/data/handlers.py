@@ -231,6 +231,7 @@ class CrossValidation:
         self.logger = logging.getLogger(__name__)
         self.data_folder = data_folder
         self.processed_data = pd.read_csv(os.path.join(self.data_folder, "processed", "thermo_processed_data.csv"))
+        self.processed_data = self.processed_data.drop_duplicates()
 
         self.random_state = 13
         self.k_folds = 10
@@ -485,8 +486,8 @@ class DataLoader:
             targets = processed_data[REGRESSION_TARGET_NAMES]
         return features, targets
 
-    def load_raw_dataset(self):
+    def load_processed_dataset(self):
         return pd.read_csv(os.path.join(self.processed_path, "thermo_processed_data.csv"))
 
-    def load_processed_dataset(self):
+    def load_raw_dataset(self):
         return pd.read_csv(os.path.join(self.raw_path, "raw_data.csv"))

@@ -200,7 +200,7 @@ class Viz:
         features["T"] = (features["T"] - T_min) / (T_max - T_min)
 
         composition = data.iloc[0, data.columns.str.startswith("z")].to_dict()
-        for output in self.results["outputs"][10:]:
+        for output in self.results["outputs"]:
             # Fluid creation
             fluid = create_fluid(composition)
 
@@ -305,4 +305,4 @@ class Viz:
         self.performance_indices_table()
         self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])
         # self.phase_diagram(use_mean_prediction=False)
-        self.phase_diagram(use_mean_prediction=True)
+        # self.phase_diagram(use_mean_prediction=True)

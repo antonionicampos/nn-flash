@@ -1,4 +1,5 @@
 import glob
+import joblib
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -118,7 +119,7 @@ class ClassificationTraining:
                 training_model_start = datetime.now()
                 pbar = tqdm(total=len(train_data))
                 for fold, (train, valid) in enumerate(zip(train_data, valid_data)):
-                    pbar.set_description(f"Train using fold {fold+1} dataset")
+                    pbar.set_description(f"Training using fold {fold+1} dataset")
 
                     train_features, train_labels = train["features"], train["targets"]
                     valid_features, valid_labels = valid["features"], valid["targets"]
@@ -158,12 +159,7 @@ class ClassificationTraining:
 
         self.logger.info("Saving models")
         self.logger.info(f"Total elapsed Time: {datetime.now() - training_start}")
-
-        import json
-        with open("results.json", "w") as f:
-            json.dump(results, f)
-
-        # self.save_training_models(results)
+        self.save_training_models(results)
 
     def training_history(self, model_id: int):
         results = self.load_training_models()
@@ -249,17 +245,22 @@ class ClassificationTraining:
 
             for fold_results in folds:
                 fold = fold_results["fold"]
-                history = fold_results["history"]
                 model = fold_results["model"]
 
                 fold_folder = os.path.join(model_folder, f"Fold{fold}")
-                os.mkdir(fold_folder)
+                if not os.path.isdir(fold_folder):
+                    os.mkdir(fold_folder)
 
-                # Saving tf.keras.callbacks.History object to CSV file
-                history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
+                if output["model_type"] == "neural_network":
+                    # Saving tf.keras.callbacks.History object to CSV file
+                    history = fold_results["history"]
+                    history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
 
-                # Saving tf.keras.Model weights
-                model.save(os.path.join(fold_folder, "model.keras"))
+                    # Saving tf.keras.Model weights
+                    model.save(os.path.join(fold_folder, "model.keras"))
+                elif output["model_type"] == "svm":
+                    with open(os.path.join(fold_folder, "model.joblib"), "wb") as f:
+                        joblib.dump(model, f)
 
     def load_training_models(self):
         """Load classification models training results"""

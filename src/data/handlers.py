@@ -21,6 +21,8 @@ from src.utils import create_fluid
 from typing import Any, List
 
 
+plt.style.use("seaborn-v0_8-paper")
+plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))
 pd.set_option("future.no_silent_downcasting", True)
 
 
@@ -67,6 +69,17 @@ class DataTransform:
         self.logger = logging.getLogger(__name__)
         self.data_folder = data_folder
 
+        self.raw_folder = os.path.join("data", "raw")
+        self.processed_folder = os.path.join("data", "processed")
+        self.images_folder = os.path.join("data", "images")
+
+        if not os.path.isdir(self.raw_folder):
+            os.mkdir(self.raw_folder)
+        if not os.path.isdir(self.processed_folder):
+            os.mkdir(self.processed_folder)
+        if not os.path.isdir(self.images_folder):
+            os.mkdir(self.images_folder)
+
     def is_same_components(self, components: List[str]):
         for component in components:
             if not component in FLUID_COMPONENTS:
@@ -79,7 +92,7 @@ class DataTransform:
             with open(filename) as f:
                 raw_data = json.load(f)["Fluids"]
 
-            field = filename.split("\\")[-1].split(".")[0][11:]
+            field = os.path.split(filename)[-1].split(".")[0][11:]
             for fluid in raw_data:
                 hydrocarbon_analysis = fluid["HydrocarbonAnalysis"]
                 if hydrocarbon_analysis["AtmosphericFlashTestAndCompositionalAnalysis"]:
@@ -138,7 +151,7 @@ class DataTransform:
         self.logger.info(f"Transformed CSV file saved on {filepath}")
 
     def PT_phase_envelope_data_filter(self, savefig: bool = False):
-        processed_data = pd.read_csv(os.path.join(self.data_folder, "processed", "processed_data.csv"))
+        processed_data = pd.read_csv(os.path.join(self.processed_folder, "processed_data.csv"))
         composition_data = processed_data.loc[:, processed_data.columns.str.contains("z")]
 
         self.logger.info(f"Initial samples: {processed_data.shape[0]}")
@@ -173,12 +186,12 @@ class DataTransform:
                 )
 
         if savefig:
-            ax.set_title("PT envelope")
-            ax.set_xlabel("Temperature [K]")
-            ax.set_ylabel("Pressure [bar]")
+            ax.set_title("Diagrama de fases PT")
+            ax.set_xlabel("Temperatura [K]")
+            ax.set_ylabel("Pressão [bar a]")
             f.tight_layout()
 
-            filepath = os.path.join("docs", "images", "phase_diagrams.png")
+            filepath = os.path.join(self.images_folder, "phase_diagrams.png")
             f.savefig(filepath, dpi=600)
 
         processed_data = processed_data.reset_index(drop=True)
@@ -355,7 +368,10 @@ class CrossValidation:
         return pd.DataFrame.from_records(samples)
 
     def create_datasets(self, model: str, samples_per_composition: int):
-        assert model in ["classification", "regression"], "model argument can be only 'classification' or 'regression'"
+        assert model in [
+            "classification",
+            "regression",
+        ], "model argument can be only 'classification' or 'regression'"
         root_folder = os.path.join(self.data_folder, "processed", "experimental")
 
         if model == "classification":
@@ -443,7 +459,12 @@ class DataLoader:
         problem_type = ["classification", "regression"]
         assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
 
-        cv_folder = os.path.join(self.processed_path, "experimental", problem, f"{samples_per_composition:03d}points")
+        cv_folder = os.path.join(
+            self.processed_path,
+            "experimental",
+            problem,
+            f"{samples_per_composition:03d}points",
+        )
         self.train_files = glob.glob(os.path.join(cv_folder, "train_*.csv"))
         self.valid_files = glob.glob(os.path.join(cv_folder, "valid_*.csv"))
         self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))

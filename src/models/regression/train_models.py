@@ -118,7 +118,7 @@ class RegressionTraining:
                 pbar.update()
 
             pbar.close()
-            os.system("cls")
+            os.system("cls" if os.name == "nt" else "clear")
             model_results["folds"] = folds
             results["outputs"].append(model_results)
             self.logger.info(f"{model_name} training elapsed Time: {datetime.now() - training_model_start}")

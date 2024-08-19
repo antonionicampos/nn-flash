@@ -151,14 +151,19 @@ class ClassificationTraining:
                     pbar.update()
 
             pbar.close()
-            os.system("cls")
+            os.system("cls" if os.name == "nt" else "clear")
             model_results["folds"] = folds
             results["outputs"].append(model_results)
             self.logger.info(f"{model_name} training elapsed Time: {datetime.now() - training_model_start}")
 
         self.logger.info("Saving models")
         self.logger.info(f"Total elapsed Time: {datetime.now() - training_start}")
-        self.save_training_models(results)
+
+        import json
+        with open("results.json", "w") as f:
+            json.dump(results, f)
+
+        # self.save_training_models(results)
 
     def training_history(self, model_id: int):
         results = self.load_training_models()

@@ -55,7 +55,7 @@ def load_model_hparams(hparameters):
                     for i, nn_hp in enumerate(nn_hparams)
                 ]
 
-    return models_hparams
+    return [{"model_id": i + 1, **hp} for i, hp in enumerate(models_hparams)]
 
 
 def model_parameters_size(model: tf.keras.Model):

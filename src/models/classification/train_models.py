@@ -135,7 +135,9 @@ class ClassificationTraining:
                     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
                     callbacks = [
                         tf.keras.callbacks.ReduceLROnPlateau(),
-                        tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=10),
+                        tf.keras.callbacks.EarlyStopping(
+                            min_delta=0.0001, patience=10
+                        ),  # patience 10% of epochs size
                     ]
                     model = NeuralNetClassifier(**params)
                     model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])
@@ -211,6 +213,7 @@ class ClassificationTraining:
                 "outputs": [
                     {
                         "model_id": int,
+                        "model_type": "neural_network" | "svm" | "random_forest",
                         "model_name": str,
                         "arch": {
                             "hidden_units": List[int],
@@ -273,11 +276,16 @@ class ClassificationTraining:
             model_obj = self.load_pickle(os.path.join(folder, "model_info.pickle"))
 
             for fold in np.arange(n_folds):
-                model = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "model.keras"))
-                history = pd.read_csv(os.path.join(folder, f"Fold{fold+1}", "history.csv"))
-                folds.append({"fold": fold + 1, "history": history, "model": model})
+                fold_folder = os.path.join(folder, f"Fold{fold+1}")
+                if model_obj["model_type"] == "neural_network":
+                    model = tf.keras.models.load_model(os.path.join(fold_folder, "model.keras"))
+                    history = pd.read_csv(os.path.join(fold_folder, "history.csv"))
+                    folds.append({"fold": fold + 1, "history": history, "model": model})
+                elif model_obj["model_type"] == "svm":
+                    with open(os.path.join(fold_folder, "model.joblib"), "rb") as f:
+                        model = joblib.load(f)
+                    folds.append({"fold": fold + 1, "history": history, "model": model})
 
             model_results.append({"folds": folds, **model_obj})
-
         results["outputs"] = sorted(model_results, key=lambda item: item["model_id"])
         return results

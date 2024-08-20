@@ -11,7 +11,7 @@ from src.models.classification.train_models import ClassificationTraining
 class ClassificationAnalysis:
     def __init__(self, samples_per_composition: int):
         self.results_folder = os.path.join(
-            "src",
+            "data",
             "models",
             "classification",
             "saved_performance_indices",
@@ -50,19 +50,29 @@ class ClassificationAnalysis:
             for j, (result, valid_data) in enumerate(zip(models["folds"], self.valid_datasets)):
                 valid_features, valid_labels = valid_data["features"], valid_data["targets"]
 
-                X_valid = tf.convert_to_tensor(valid_features)
-                probs = tf.convert_to_tensor(valid_labels)
-                y_valid = tf.argmax(probs, axis=1)
-
                 model = result["model"]
-                logits = model(X_valid)
-                probs_hat = tf.nn.softmax(logits)
-                y_valid_hat = tf.argmax(probs_hat, axis=1)
+
+                if models["model_type"] == "neural_network":
+                    X_valid = tf.convert_to_tensor(valid_features)
+                    probs = tf.convert_to_tensor(valid_labels)
+                    y_valid = tf.argmax(probs, axis=1)
+
+                    logits = model(X_valid)
+                    probs_hat = tf.nn.softmax(logits)
+                    y_valid_hat = tf.argmax(probs_hat, axis=1)
+
+                    # Cross-Entropy
+                    cross_entropy_values = tf.keras.losses.categorical_crossentropy(probs, probs_hat)
+                    self.cross_entropy[j, i] = tf.reduce_mean(cross_entropy_values)
+                elif models["model_type"] == "svm":
+                    y_valid = np.argmax(valid_labels.values, axis=1)
+                    y_valid_hat = model.predict(valid_features.values)
+
                 self.confusion_matrices[j, i] = confusion_matrix(y_valid, y_valid_hat)
 
-                # Cross-Entropy
-                cross_entropy_values = tf.keras.losses.categorical_crossentropy(probs, probs_hat)
-                self.cross_entropy[j, i] = tf.reduce_mean(cross_entropy_values)
+                # # Cross-Entropy
+                # cross_entropy_values = tf.keras.losses.categorical_crossentropy(probs, probs_hat)
+                # self.cross_entropy[j, i] = tf.reduce_mean(cross_entropy_values)
 
         # Accuracy, Sensitivity, Sum-Product Index
         for model in np.arange(self.confusion_matrices.shape[1]):

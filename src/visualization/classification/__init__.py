@@ -40,7 +40,7 @@ class Viz:
         self.results = training.load_training_models()
         self.indices = analysis.load_performance_indices()
         self.viz_folder = os.path.join(
-            "src",
+            "data",
             "visualization",
             "classification",
             "saved_viz",
@@ -300,7 +300,6 @@ class Viz:
     def create(self):
         for model_info in self.results["outputs"]:
             self.roc_analysis(model_id=model_info["model_id"])
-
         self.models_table()
         self.performance_indices_table()
         self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])

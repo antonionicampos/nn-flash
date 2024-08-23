@@ -8,6 +8,7 @@ import tensorflow as tf
 from datetime import datetime
 from neqsim.thermo import TPflash
 from sklearn.metrics import RocCurveDisplay, auc
+from sklearn.preprocessing import LabelBinarizer
 from src.data.handlers import DataLoader
 from src.models.classification.train_models import ClassificationTraining
 from src.models.classification.evaluate_models import ClassificationAnalysis
@@ -19,8 +20,7 @@ from typing import List, Tuple
 plt.style.use("seaborn-v0_8-paper")
 plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))
 
-DECIMALS = 3
-DPI = 400
+DPI = 600
 
 
 class Viz:
@@ -52,116 +52,150 @@ class Viz:
 
     def models_table(self):
         outputs = self.results["outputs"]
-        outputs = [
-            {"model_id": model["model_id"], "model_name": model["model_name"], **model["arch"], **model["opt"]}
-            for model in outputs
-        ]
 
-        table = pd.DataFrame.from_records(outputs)
-        table.to_latex(os.path.join(self.viz_folder, "models_table.tex"), index=False)
+        models_tables = {}
+        for model in outputs:
+            if model["model_type"] == "neural_network":
+                if model["model_type"] not in models_tables:
+                    models_tables[model["model_type"]] = []
+                models_tables[model["model_type"]].append(
+                    {
+                        "model_id": model["model_id"],
+                        "model_name": model["model_name"],
+                        **model["params"],
+                        **model["opt"],
+                    }
+                )
+            elif model["model_type"] == "svm":
+                if model["model_type"] not in models_tables:
+                    models_tables[model["model_type"]] = []
+                models_tables[model["model_type"]].append(
+                    {
+                        "model_id": model["model_id"],
+                        "model_name": model["model_name"],
+                        **model["params"],
+                    }
+                )
+
+        for k, v in models_tables.items():
+            table = pd.DataFrame.from_records(v)
+            table.to_latex(os.path.join(self.viz_folder, f"{k}_table.tex"), index=False)
 
     def performance_indices_table(self):
-        model_names = [res["model_name"] for res in self.results["outputs"]]
-
+        model_names = [res["model_name"].replace("#", "\#") for res in self.results["outputs"]]
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            mean = np.round(index.mean(axis=0), DECIMALS)
-            std = np.round(index.std(axis=0), DECIMALS)
+            mean, std = index.mean(axis=0), index.std(axis=0)
             if len(self.indices[name].shape) == 2:
-                data[name] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean, std)]
+                data[name] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
             elif name == "sensitivity":
                 for i, label in enumerate(TARGET_NAMES):
-                    lab = label.lower()
-                    data[f"{name}_{lab}"] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean[:, i], std[:, i])]
+                    data[f"{name}_{label.lower()}"] = [
+                        rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean[:, i], std[:, i])
+                    ]
 
         table = pd.DataFrame(data, index=model_names)
-        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"))
+
+        def highlight(s, props=""):
+            mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
+            if s.name == "cross_entropy":
+                return np.where(mu == np.min(mu.values), props, "")
+            else:
+                return np.where(mu == np.max(mu.values), props, "")
+
+        table = table.style.apply(highlight, props="font-weight:bold;", axis=0)
+        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"), hrules=True, convert_css=True)
 
     def errorbar_plot(self, indices_names: List[str]):
         outputs = self.results["outputs"]
         labels = [hp["model_name"].replace("#", "\#") for hp in outputs]
         x = np.array([i + 1 for i in np.arange(len(outputs))])
 
-        f, axs = plt.subplots(len(indices_names), 1, figsize=(5, 4 * len(indices_names)), sharex=True)
+        for name in indices_names:
+            f, ax = plt.subplots(figsize=(10, 5))
 
-        for i, name in enumerate(indices_names):
-            ax = axs[i] if len(indices_names) > 1 else axs
             y, y_err = self.indices[name].mean(axis=0), self.indices[name].std(axis=0)
-            ax.errorbar(x, y, y_err, c=f"C{i}", fmt="o", elinewidth=2.0, capsize=3.0, capthick=2.0, label=name)
+            kwargs = {"c": "C0", "fmt": "_", "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
+            ax.errorbar(x, y, y_err, label=name.replace("_", " "), **kwargs)
             ax.yaxis.grid()
             ax.set_xticks(x, labels, rotation=90, ha="center")
             ax.legend()
 
-        f.tight_layout()
-        f.savefig(os.path.join(self.viz_folder, "errorbar_plot.png"), dpi=DPI)
+            f.tight_layout()
+            f.savefig(os.path.join(self.viz_folder, f"{name}_errorbar_plot.png"), dpi=DPI)
+            plt.close(f)
 
-    def roc_analysis(self, model_id: int, xlim: Tuple[float] = (), ylim: Tuple[float] = ()):
-        model_info = [info for info in self.results["outputs"] if info["model_id"] == model_id][0]
-        n_folds = len(model_info["folds"])
+    def roc_curves(self, xlim: Tuple[float] = (), ylim: Tuple[float] = ()):
+        n_folds = len(self.results["outputs"][0]["folds"])
 
-        f, axs = plt.subplots(1, 3, figsize=(12, 5))
-        for label in range(3):
-            tprs, aucs = [], []
-            mean_fpr = np.linspace(0, 1, 100)
+        for model_info in self.results["outputs"]:
+            f, axs = plt.subplots(1, 3, figsize=(12, 5))
+            for label in range(3):
+                tprs, aucs = [], []
+                mean_fpr = np.linspace(0, 1, 100)
 
-            for fold, data in enumerate(model_info["folds"]):
-                model = data["model"]
-                y, y_hat = binary_classification(model, self.valid_data[fold], label=label)
+                for fold, data in enumerate(model_info["folds"]):
+                    model = data["model"]
+                    model_type = model_info["model_type"]
+                    model_id = model_info["model_id"]
 
-                viz = RocCurveDisplay.from_predictions(
-                    y,
-                    y_hat,
-                    name=f"ROC fold {fold + 1}",
-                    alpha=0.4,
-                    lw=1,
-                    ax=axs[label],
-                    plot_chance_level=(fold == n_folds - 1),
+                    y, y_hat = binary_classification(model, self.valid_data[fold], label=label, model_type=model_type)
+
+                    viz = RocCurveDisplay.from_predictions(
+                        y,
+                        y_hat,
+                        name=f"ROC fold {fold + 1}",
+                        alpha=0.4,
+                        lw=1,
+                        ax=axs[label],
+                        plot_chance_level=(fold == n_folds - 1),
+                    )
+                    interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+                    interp_tpr[0] = 0.0
+                    tprs.append(interp_tpr)
+                    aucs.append(viz.roc_auc)
+
+                mean_tpr = np.mean(tprs, axis=0)
+                mean_tpr[-1] = 1.0
+                mean_auc = auc(mean_fpr, mean_tpr)
+                std_auc = np.std(aucs)
+                axs[label].step(
+                    mean_fpr,
+                    mean_tpr,
+                    color="b",
+                    label=r"ROC Médio (AUC = %0.3f $\pm$ %0.3f)" % (mean_auc, std_auc),
+                    lw=2,
+                    alpha=0.8,
                 )
-                interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
-                interp_tpr[0] = 0.0
-                tprs.append(interp_tpr)
-                aucs.append(viz.roc_auc)
 
-            mean_tpr = np.mean(tprs, axis=0)
-            mean_tpr[-1] = 1.0
-            mean_auc = auc(mean_fpr, mean_tpr)
-            std_auc = np.std(aucs)
-            axs[label].step(
-                mean_fpr,
-                mean_tpr,
-                color="b",
-                label=r"Mean ROC (AUC = %0.3f $\pm$ %0.3f)" % (mean_auc, std_auc),
-                lw=2,
-                alpha=0.8,
-            )
+                std_tpr = np.std(tprs, axis=0)
+                tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+                tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+                axs[label].fill_between(
+                    mean_fpr,
+                    tprs_lower,
+                    tprs_upper,
+                    color="grey",
+                    alpha=0.4,
+                    label=r"$\pm 1 \sigma$",
+                )
 
-            std_tpr = np.std(tprs, axis=0)
-            tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
-            tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
-            axs[label].fill_between(
-                mean_fpr,
-                tprs_lower,
-                tprs_upper,
-                color="grey",
-                alpha=0.4,
-                label=r"$\pm 1 \sigma$",
-            )
+                axs[label].set(
+                    xlabel="Taxa de Falso Positivo",
+                    ylabel="Taxa de Verdadeiro Positivo",
+                    title=f"Curva ROC média com incerteza\n(Rótulo positivo '{TARGET_NAMES[label]}')",
+                )
+                axs[label].legend(loc="lower right", prop={"size": 8})
+                axs[label].grid()
 
-            axs[label].set(
-                xlabel="False Positive Rate",
-                ylabel="True Positive Rate",
-                title=f"Mean ROC curve with uncertainty\n(Positive label '{TARGET_NAMES[label]}')",
-            )
-            axs[label].legend(loc="lower right", prop={"size": 8})
-            axs[label].grid()
-
-            if xlim:
-                axs[label].set_xlim(xlim)
-            if ylim:
-                axs[label].set_ylim(ylim)
-        f.tight_layout()
-        f.savefig(os.path.join(self.viz_folder, f"roc_analysis_model_id={model_id}.png"), dpi=DPI)
+                if xlim:
+                    axs[label].set_xlim(xlim)
+                if ylim:
+                    axs[label].set_ylim(ylim)
+            f.tight_layout()
+            f.savefig(os.path.join(self.viz_folder, f"roc_curves_model_id={model_id}.png"), dpi=DPI)
+            plt.close(f)
 
     def phase_diagram(
         self,
@@ -298,8 +332,7 @@ class Viz:
             plt.close("all")
 
     def create(self):
-        for model_info in self.results["outputs"]:
-            self.roc_analysis(model_id=model_info["model_id"])
+        self.roc_curves()
         self.models_table()
         self.performance_indices_table()
         self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])

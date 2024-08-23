@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from scipy.stats import gmean
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, log_loss
 from src.data.handlers import DataLoader
 from src.models.classification.train_models import ClassificationTraining
 
@@ -65,6 +65,10 @@ class ClassificationAnalysis:
                     cross_entropy_values = tf.keras.losses.categorical_crossentropy(probs, probs_hat)
                     self.cross_entropy[j, i] = tf.reduce_mean(cross_entropy_values)
                 elif models["model_type"] == "svm":
+                    probs = valid_labels.values
+                    probs_hat = model.predict_proba(valid_features.values)
+                    self.cross_entropy[j, i] = log_loss(probs, probs_hat)
+
                     y_valid = np.argmax(valid_labels.values, axis=1)
                     y_valid_hat = model.predict(valid_features.values)
 

@@ -93,11 +93,13 @@ class ClassificationTraining:
                     train_labels = train_labels.argmax(axis=1)
                     valid_labels = valid_labels.argmax(axis=1)
 
-                    model = SVC(**params)
+                    model = SVC(probability=True, **params)
                     model.fit(train_features, train_labels)
-
+                    probs = model.predict_proba(valid_features)
+                    valid_labels_hat = np.argmax(probs, axis=1)
+                    
                     folds.append({"fold": fold + 1, "model": model})
-                    valid_accuracy = accuracy_score(valid_labels, model.predict(valid_features))
+                    valid_accuracy = accuracy_score(valid_labels, valid_labels_hat)
                     self.logger.info(f"Fold {fold+1} dataset, valid accuracy: {valid_accuracy:.4f}")
                     pbar.update()
 
@@ -135,9 +137,8 @@ class ClassificationTraining:
                     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
                     callbacks = [
                         tf.keras.callbacks.ReduceLROnPlateau(),
-                        tf.keras.callbacks.EarlyStopping(
-                            min_delta=0.0001, patience=10
-                        ),  # patience 10% of epochs size
+                        # patience 10% of epochs size
+                        tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=50),
                     ]
                     model = NeuralNetClassifier(**params)
                     model.compile(optimizer=optimizer, loss=loss_object, metrics=[accuracy])

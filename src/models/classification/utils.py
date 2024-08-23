@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from itertools import product
+from typing import Any
 
 
 def load_model_hparams(hparameters):
@@ -63,14 +64,19 @@ def model_parameters_size(model: tf.keras.Model):
     return np.prod(parameters)
 
 
-def binary_classification(model: tf.keras.Model, data: pd.DataFrame, label: int):
+def binary_classification(model: Any, data: pd.DataFrame, label: int, model_type: str):
     features, labels = data["features"], data["targets"]
-    X = tf.convert_to_tensor(features)
-    y = tf.convert_to_tensor(labels)
-    y = tf.argmax(y, axis=1)
+    y = np.argmax(labels, axis=1)
 
-    logits = model(X)
-    probs = tf.nn.softmax(logits)
+    if model_type == "neural_network":
+        X = tf.convert_to_tensor(features)
+        logits = model(X)
+        probs = tf.nn.softmax(logits)
+        y_hat_class = probs[:, label]
+    elif model_type == "svm":
+        probs = model.predict_proba(features.values)
+        y_hat_class = probs[:, label]
+
     y_class = np.where(y == label, 1, 0)
-    y_hat_class = probs[:, label]
+
     return y_class, y_hat_class

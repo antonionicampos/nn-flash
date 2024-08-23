@@ -3,8 +3,8 @@ hparams = [
         "model_type": "svm",
         "params": {
             "kernel": ["linear", "sigmoid", "rbf"],
-            "degree": [3, 4, 5, 6, 7, 8, 9],
-            "C": [0.1, 1.0, 10.0],
+            "degree": [2, 3, 4, 5, 6, 7],
+            "C": [1.0, 10.0],
         },
     },
     {

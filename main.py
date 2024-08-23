@@ -126,19 +126,31 @@ if __name__ == "__main__":
         logger.info("Starting train models")
         classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
         regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
-        # classification_training.run()
-        regression_training.run()
+
+        if args.task == "both":
+            classification_training.run()
+            regression_training.run()
+        elif args.task == "classification":
+            classification_training.run()
+        elif args.task == "regression":
+            regression_training.run()
 
     if args.analysis:
         logger.info("Starting analyze models")
         classification_analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
         regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
-        # classification_analysis.run()
-        regression_analysis.run()
+
+        if args.task == "both":
+            classification_analysis.run()
+            regression_analysis.run()
+        elif args.task == "classification":
+            classification_analysis.run()
+        elif args.task == "regression":
+            regression_analysis.run()
 
     if args.visualization:
         logger.info("Starting create visualization")
         classification_viz = Viz(samples_per_composition=samples_per_composition)
-        regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
+        # regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
         classification_viz.create()
         # regression_viz.create()

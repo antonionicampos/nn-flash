@@ -23,7 +23,7 @@ plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))
 DPI = 600
 
 
-class Viz:
+class ClassificationViz:
 
     def __init__(self, samples_per_composition: int):
         self.logger = logging.getLogger(__name__)
@@ -37,7 +37,9 @@ class Viz:
             samples_per_composition=samples_per_composition,
         )
         self.valid_data = cv_data["valid"]
+        self.logger.info("Loading training models results")
         self.results = training.load_training_models()
+        self.logger.info("Loading performance indices results")
         self.indices = analysis.load_performance_indices()
         self.viz_folder = os.path.join(
             "data",
@@ -130,6 +132,10 @@ class Viz:
         n_folds = len(self.results["outputs"][0]["folds"])
 
         for model_info in self.results["outputs"]:
+            model_type = model_info["model_type"]
+            model_id = model_info["model_id"]
+
+            self.logger.info(f"ROC curve for model ID: {model_id} and model type: {model_type}")
             f, axs = plt.subplots(1, 3, figsize=(12, 5))
             for label in range(3):
                 tprs, aucs = [], []
@@ -137,8 +143,6 @@ class Viz:
 
                 for fold, data in enumerate(model_info["folds"]):
                     model = data["model"]
-                    model_type = model_info["model_type"]
-                    model_id = model_info["model_id"]
 
                     y, y_hat = binary_classification(model, self.valid_data[fold], label=label, model_type=model_type)
 
@@ -195,7 +199,7 @@ class Viz:
                     axs[label].set_ylim(ylim)
             f.tight_layout()
             f.savefig(os.path.join(self.viz_folder, f"roc_curves_model_id={model_id}.png"), dpi=DPI)
-            plt.close(f)
+            plt.close("all")
 
     def phase_diagram(
         self,
@@ -332,6 +336,7 @@ class Viz:
             plt.close("all")
 
     def create(self):
+        self.logger.info("Starting ROC curves creation")
         self.roc_curves()
         self.models_table()
         self.performance_indices_table()

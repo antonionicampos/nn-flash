@@ -10,7 +10,8 @@ import tensorflow as tf
 from datetime import datetime
 from src.data.handlers import DataLoader
 from src.models.regression import NeuralNet, ResidualNeuralNet
-from src.models.regression.models_specs import hparams
+from src.models.regression.experiments import hparams
+from src.utils import load_model_hparams
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -47,7 +48,7 @@ class RegressionTraining:
         }
         """
         data_loader = DataLoader()
-        cv_data, min_max = data_loader.load_cross_validation_datasets(
+        cv_data, _ = data_loader.load_cross_validation_datasets(
             problem="regression",
             samples_per_composition=self.samples_per_composition,
         )
@@ -56,7 +57,7 @@ class RegressionTraining:
 
         results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
         training_start = datetime.now()
-        for hp in hparams:
+        for hp in load_model_hparams(hparams):
             model_name = hp["model_name"]
             arch_params = hp["arch"]
             opt_params = hp["opt"]
@@ -96,7 +97,8 @@ class RegressionTraining:
                 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
                 callbacks = [
                     tf.keras.callbacks.ReduceLROnPlateau(),
-                    tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=10),
+                    # patience 10% of epochs size
+                    tf.keras.callbacks.EarlyStopping(min_delta=0.0001, patience=50),
                 ]
 
                 if model_type == "residual":

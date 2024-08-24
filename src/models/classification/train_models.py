@@ -14,7 +14,7 @@ from sklearn.svm import SVC
 from src.data.handlers import DataLoader
 from src.models.classification import NeuralNetClassifier
 from src.models.classification.experiments import hparams
-from src.models.classification.utils import load_model_hparams
+from src.utils import load_model_hparams
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)

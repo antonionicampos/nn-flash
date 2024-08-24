@@ -1,3 +1,7 @@
+import matplotlib
+
+matplotlib.use("agg")
+
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -12,7 +16,7 @@ from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.train_models import ClassificationTraining
 from src.models.regression.evaluate_models import RegressionAnalysis
 from src.models.regression.train_models import RegressionTraining
-from src.visualization.classification import Viz
+from src.visualization.classification import ClassificationViz
 from src.visualization.regression import RegressionViz
 
 
@@ -50,14 +54,14 @@ if __name__ == "__main__":
         "--samples-per-composition",
         default="3",
         action="store",
-        choices=["3", "30", "300"],
+        choices=["3", "30"],
         help="Select dataset depending on number of P, T samples per composition sample",
     )
     parser.add_argument(
         "--task",
         default="both",
         action="store",
-        choices=["both", "classification", "regression"],
+        choices=["classification", "regression"],
         help="Task(s) to run pipeline",
     )
     parser.add_argument(
@@ -127,10 +131,7 @@ if __name__ == "__main__":
         classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
         regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
 
-        if args.task == "both":
-            classification_training.run()
-            regression_training.run()
-        elif args.task == "classification":
+        if args.task == "classification":
             classification_training.run()
         elif args.task == "regression":
             regression_training.run()
@@ -140,17 +141,17 @@ if __name__ == "__main__":
         classification_analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
         regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
 
-        if args.task == "both":
-            classification_analysis.run()
-            regression_analysis.run()
-        elif args.task == "classification":
+        if args.task == "classification":
             classification_analysis.run()
         elif args.task == "regression":
             regression_analysis.run()
 
     if args.visualization:
         logger.info("Starting create visualization")
-        classification_viz = Viz(samples_per_composition=samples_per_composition)
-        # regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
-        classification_viz.create()
-        # regression_viz.create()
+        classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
+        regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
+
+        if args.task == "classification":
+            classification_viz.create()
+        elif args.task == "regression":
+            regression_viz.create()

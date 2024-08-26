@@ -10,7 +10,7 @@ from src.utils import denorm
 class RegressionAnalysis:
     def __init__(self, samples_per_composition: int):
         self.results_folder = os.path.join(
-            "src",
+            "data",
             "models",
             "regression",
             "saved_performance_indices",

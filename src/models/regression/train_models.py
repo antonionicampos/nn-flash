@@ -24,6 +24,13 @@ class RegressionTraining:
     def __init__(self, samples_per_composition: int):
         self.samples_per_composition = samples_per_composition
         self.logger = logging.getLogger(__name__)
+        self.results_folder = os.path.join(
+            "data",
+            "models",
+            "regression",
+            "saved_models",
+            f"{samples_per_composition:03d}points",
+        )
 
     def run(self):
         """Train regression models defined on models_specs.py script
@@ -59,7 +66,7 @@ class RegressionTraining:
         training_start = datetime.now()
         for hp in load_model_hparams(hparams):
             model_name = hp["model_name"]
-            arch_params = hp["arch"]
+            arch_params = hp["params"]
             opt_params = hp["opt"]
 
             learning_rate = opt_params["lr"]
@@ -115,7 +122,7 @@ class RegressionTraining:
                     verbose=0,  # Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch
                 )
                 folds.append({"fold": fold + 1, "model": model, "history": pd.DataFrame(h.history)})
-                val_results = {k: np.round(v[-1], decimals=4) for k, v in h.history.items() if "val_" in k}
+                val_results = {k: np.round(v[-1], decimals=5) for k, v in h.history.items() if "val_" in k}
                 self.logger.info(f"Fold {fold+1} dataset, {val_results}")
                 pbar.update()
 
@@ -179,7 +186,7 @@ class RegressionTraining:
                     {
                         "model_id": int,
                         "model_name": str,
-                        "arch": {
+                        "params": {
                             "hidden_units": List[int],
                             "activation": str,
                         },
@@ -197,19 +204,11 @@ class RegressionTraining:
                 ]
             }
         """
-        samples_per_composition = results.pop("samples_per_composition")
-        results_folder = os.path.join(
-            "src",
-            "models",
-            "regression",
-            "saved_models",
-            f"{samples_per_composition:03d}points",
-        )
-        if not os.path.isdir(results_folder):
-            os.makedirs(results_folder)
+        if not os.path.isdir(self.results_folder):
+            os.makedirs(self.results_folder)
 
         for output in results["outputs"]:
-            model_folder = os.path.join(results_folder, output["model_name"])
+            model_folder = os.path.join(self.results_folder, output["model_name"])
             if not os.path.isdir(model_folder):
                 os.mkdir(model_folder)
 
@@ -237,16 +236,9 @@ class RegressionTraining:
         """Load regression models training results"""
         n_folds = 10
         results = {"samples_per_composition": self.samples_per_composition}
-        results_folder = os.path.join(
-            "src",
-            "models",
-            "regression",
-            "saved_models",
-            f"{self.samples_per_composition:03d}points",
-        )
 
         model_results = []
-        for folder in glob.glob(os.path.join(results_folder, "*")):
+        for folder in glob.glob(os.path.join(self.results_folder, "*")):
             folds = []
             model_obj = self.load_pickle(os.path.join(folder, "model_info.pickle"))
 

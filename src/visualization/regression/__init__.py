@@ -25,6 +25,7 @@ class RegressionViz:
 
     def __init__(self, samples_per_composition: int):
         self.logger = logging.getLogger(__name__)
+        self.k_folds = 10
         training = RegressionTraining(samples_per_composition=samples_per_composition)
         analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
         self.data_loader = DataLoader()
@@ -37,7 +38,7 @@ class RegressionViz:
         self.results = training.load_training_models()
         self.indices = analysis.load_performance_indices()
         self.viz_folder = os.path.join(
-            "src",
+            "data",
             "visualization",
             "regression",
             "saved_viz",
@@ -50,7 +51,7 @@ class RegressionViz:
     def models_table(self):
         outputs = self.results["outputs"]
         outputs = [
-            {"model_id": model["model_id"], "model_name": model["model_name"], **model["arch"], **model["opt"]}
+            {"model_id": model["model_id"], "model_name": model["model_name"], **model["params"], **model["opt"]}
             for model in outputs
         ]
 
@@ -58,34 +59,37 @@ class RegressionViz:
         table.to_latex(os.path.join(self.viz_folder, "models_table.tex"), index=False)
 
     def performance_indices_table(self):
-        model_names = [res["model_name"] for res in self.results["outputs"]]
-
+        model_names = [res["model_name"].replace("#", "\#") for res in self.results["outputs"]]
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            mean = np.round(index.mean(axis=0), DECIMALS)
-            std = np.round(index.std(axis=0), DECIMALS)
-            if len(self.indices[name].shape) == 2:
-                data[name] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean, std)]
-            elif name == "sensitivity":
-                for i, label in enumerate(TARGET_NAMES):
-                    lab = label.lower()
-                    data[f"{name}_{lab}"] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean[:, i], std[:, i])]
+            mean, std = index.mean(axis=(0, 2)), index.std(axis=(0, 2))
+            # if len(self.indices[name].shape) == 3:
+            #     data[name] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean, std)]
+            data[name.replace("_", "\_")] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
 
         table = pd.DataFrame(data, index=model_names)
-        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"))
+
+        def highlight(s, props=""):
+            mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
+            return np.where(mu == np.min(mu.values), props, "")
+
+        table = table.style.apply(highlight, props="font-weight:bold;", axis=0)
+        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"), hrules=True, convert_css=True)
+        # table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"))
 
     def errorbar_plot(self, indices_names: List[str], by_model: bool):
         outputs = self.results["outputs"]
         labels = [hp["model_name"].replace("#", "\#") for hp in outputs]
         x = np.array([i + 1 for i in np.arange(len(outputs))])
 
-        errorbar_kwargs = {"fmt": "_", "ms": 6.0, "mew": 2.0, "elinewidth": 2.0, "capsize": 3.0, "capthick": 2.0}
+        errorbar_kwargs = {"fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
         if by_model:
             f, axs = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
             for i, name in enumerate(indices_names):
                 ax = axs[i] if len(indices_names) > 1 else axs
-                y, y_err = self.indices[name].mean(axis=(0, 2)), self.indices[name].mean(axis=-1).std(axis=0)
+                y = self.indices[name].mean(axis=(0, 2))
+                y_err = self.indices[name].std(axis=(0, 2)) / np.sqrt(self.k_folds)
                 ax.errorbar(x, y, y_err, c=f"C{i}", label=name, **errorbar_kwargs)
                 ax.yaxis.grid()
                 ax.set_xticks(x, labels, rotation=90, ha="center")
@@ -100,18 +104,11 @@ class RegressionViz:
                 model_id = output["model_id"]
                 f, axs = plt.subplots(len(indices_names), 1, figsize=(6, 4 * len(indices_names)), sharex=True)
                 for i, name in enumerate(indices_names):
-                    errorbar_kwargs = {
-                        "fmt": "_",
-                        "ms": 6.0,
-                        "mew": 2.0,
-                        "elinewidth": 2.0,
-                        "capsize": 3.0,
-                        "capthick": 2.0,
-                        "label": name,
-                    }
+                    kwargs = {"label": name, **errorbar_kwargs}
                     ax = axs[i] if len(indices_names) > 1 else axs
-                    y, y_err = self.indices[name].mean(axis=0)[j, :], self.indices[name].std(axis=0)[j, :]
-                    ax.errorbar(x, y, y_err, c=f"C{i}", **errorbar_kwargs)
+                    y = self.indices[name].mean(axis=0)[j, :]
+                    y_err = self.indices[name].std(axis=0)[j, :] / np.sqrt(self.k_folds)
+                    ax.errorbar(x, y, y_err, c=f"C{i}", **kwargs)
                     ax.yaxis.grid()
 
                     def fix_ticks1(name):
@@ -275,6 +272,6 @@ class RegressionViz:
 
     def create(self):
         self.models_table()
-        # self.performance_indices_table()
+        self.performance_indices_table()
         self.errorbar_plot(indices_names=["mean_absolute_error"], by_model=False)
         self.errorbar_plot(indices_names=["mean_absolute_error"], by_model=True)

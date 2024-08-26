@@ -27,6 +27,7 @@ class ClassificationViz:
 
     def __init__(self, samples_per_composition: int):
         self.logger = logging.getLogger(__name__)
+        self.k_folds = 10
         self.samples_per_composition = samples_per_composition
         training = ClassificationTraining(samples_per_composition=samples_per_composition)
         analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
@@ -88,7 +89,7 @@ class ClassificationViz:
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            mean, std = index.mean(axis=0), index.std(axis=0)
+            mean, std = index.mean(axis=0), index.std(axis=0) / np.sqrt(self.k_folds)
             if len(self.indices[name].shape) == 2:
                 data[name] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
             elif name == "sensitivity":
@@ -117,8 +118,8 @@ class ClassificationViz:
         for name in indices_names:
             f, ax = plt.subplots(figsize=(10, 5))
 
-            y, y_err = self.indices[name].mean(axis=0), self.indices[name].std(axis=0)
-            kwargs = {"c": "C0", "fmt": "_", "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
+            y, y_err = self.indices[name].mean(axis=0), self.indices[name].std(axis=0) / np.sqrt(self.k_folds)
+            kwargs = {"c": "C0", "fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
             ax.errorbar(x, y, y_err, label=name.replace("_", " "), **kwargs)
             ax.yaxis.grid()
             ax.set_xticks(x, labels, rotation=90, ha="center")
@@ -126,7 +127,7 @@ class ClassificationViz:
 
             f.tight_layout()
             f.savefig(os.path.join(self.viz_folder, f"{name}_errorbar_plot.png"), dpi=DPI)
-            plt.close(f)
+            plt.close("all")
 
     def roc_curves(self, xlim: Tuple[float] = (), ylim: Tuple[float] = ()):
         n_folds = len(self.results["outputs"][0]["folds"])
@@ -152,7 +153,7 @@ class ClassificationViz:
                         name=f"ROC fold {fold + 1}",
                         alpha=0.4,
                         lw=1,
-                        ax=axs[label],
+                        # ax=axs[label],
                         plot_chance_level=(fold == n_folds - 1),
                     )
                     interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
@@ -163,13 +164,13 @@ class ClassificationViz:
                 mean_tpr = np.mean(tprs, axis=0)
                 mean_tpr[-1] = 1.0
                 mean_auc = auc(mean_fpr, mean_tpr)
-                std_auc = np.std(aucs)
+                std_auc = np.std(aucs) / np.sqrt(self.k_folds)
                 axs[label].step(
                     mean_fpr,
                     mean_tpr,
                     color="b",
                     label=r"ROC Médio (AUC = %0.3f $\pm$ %0.3f)" % (mean_auc, std_auc),
-                    lw=2,
+                    lw=1,
                     alpha=0.8,
                 )
 
@@ -181,7 +182,7 @@ class ClassificationViz:
                     tprs_lower,
                     tprs_upper,
                     color="grey",
-                    alpha=0.4,
+                    alpha=0.5,
                     label=r"$\pm 1 \sigma$",
                 )
 
@@ -279,7 +280,7 @@ class ClassificationViz:
                     ps.append(tf.nn.softmax(logits, axis=1).numpy())
                     self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
                 mean_p = np.array(ps).mean(axis=0)
-                std_p = np.array(ps).std(axis=0)
+                std_p = np.array(ps).std(axis=0) / np.sqrt(len(ps))
 
                 # plot phase diagram and neural net probabilities heatmap
                 self.logger.info("Creating phase diagram and neural net probabilities heatmap plot")

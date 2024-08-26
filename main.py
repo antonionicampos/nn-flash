@@ -46,7 +46,10 @@ neqsim_logger.propagate = False
 tensorflow_logger.propagate = False
 matplotlib_textmanager_logger.propagate = False
 
-logger_params = {"format": "[%(asctime)s] %(levelname)s %(name)s:%(lineno)3d | %(message)s", "filename": logs_filepath}
+logger_params = {
+    "format": "[%(asctime)s] %(levelname)s %(name)35s:%(lineno)3d | %(message)s",
+    "filename": logs_filepath,
+}
 
 if __name__ == "__main__":
     parser.add_argument(
@@ -55,13 +58,15 @@ if __name__ == "__main__":
         default="3",
         action="store",
         choices=["3", "30"],
+        required=True,
         help="Select dataset depending on number of P, T samples per composition sample",
     )
     parser.add_argument(
         "--task",
-        default="both",
+        default=None,
         action="store",
         choices=["classification", "regression"],
+        required=True,
         help="Task(s) to run pipeline",
     )
     parser.add_argument(

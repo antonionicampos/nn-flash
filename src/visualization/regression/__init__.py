@@ -63,9 +63,7 @@ class RegressionViz:
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            mean, std = index.mean(axis=(0, 2)), index.std(axis=(0, 2))
-            # if len(self.indices[name].shape) == 3:
-            #     data[name] = [f"{mu} +/- {sigma}" for mu, sigma in zip(mean, std)]
+            mean, std = index.mean(axis=(0, 2)), index.mean(axis=2).std(axis=0) / np.sqrt(self.k_folds)
             data[name.replace("_", "\_")] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
 
         table = pd.DataFrame(data, index=model_names)
@@ -85,17 +83,37 @@ class RegressionViz:
 
         errorbar_kwargs = {"fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
         if by_model:
-            f, axs = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
+            f1, axs1 = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
+            f2, axs2 = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
             for i, name in enumerate(indices_names):
-                ax = axs[i] if len(indices_names) > 1 else axs
+                ax1 = axs1[i] if len(indices_names) > 1 else axs1
                 y = self.indices[name].mean(axis=(0, 2))
-                y_err = self.indices[name].std(axis=(0, 2)) / np.sqrt(self.k_folds)
-                ax.errorbar(x, y, y_err, c=f"C{i}", label=name, **errorbar_kwargs)
-                ax.yaxis.grid()
-                ax.set_xticks(x, labels, rotation=90, ha="center")
-                ax.legend()
-            f.tight_layout()
-            f.savefig(os.path.join(self.viz_folder, "errorbar_plot_by_model.png"), dpi=DPI)
+                y_err = self.indices[name].mean(axis=2).std(axis=0) / np.sqrt(self.k_folds)
+                ax1.errorbar(x, y, y_err, c=f"C{i}", label=name, **errorbar_kwargs)
+                ax1.yaxis.grid()
+                ax1.set_xticks(x, labels, rotation=90, ha="center")
+                ax1.legend()
+
+                ax2 = axs2[i] if len(indices_names) > 1 else axs2
+                y = self.indices[name].mean(axis=2)
+                ax2.boxplot(
+                    y,
+                    patch_artist=True,
+                    showmeans=False,
+                    flierprops={"markerfacecolor": "C0", "markersize": 4, "markeredgecolor": "none"},
+                    medianprops={"color": "white", "linewidth": 0.5},
+                    boxprops={"facecolor": "C0", "edgecolor": "white", "linewidth": 0.5},
+                    whiskerprops={"color": "C0", "linewidth": 1.5},
+                    capprops={"color": "C0", "linewidth": 1.5},
+                )
+                ax2.yaxis.grid()
+                ax2.set_xticks(x, labels, rotation=90, ha="center")
+                ax2.legend()
+            f1.tight_layout()
+            f1.savefig(os.path.join(self.viz_folder, "errorbar_plot_by_model.png"), dpi=DPI)
+
+            f2.tight_layout()
+            f2.savefig(os.path.join(self.viz_folder, "boxplot_by_model.png"), dpi=DPI)
         else:
             indices_names = ["mean_absolute_error"]
             x = np.array([i + 1 for i in np.arange(len(REGRESSION_TARGET_NAMES))])

@@ -269,19 +269,22 @@ class CrossValidation:
         results.columns = ["z", "y", "x"]
 
         # Phase Fractions
-        nV = results.at["Phase Fraction", "y"]
-        nL = results.at["Phase Fraction", "x"]
+        V = results.at["Phase Fraction", "y"]
+        L = results.at["Phase Fraction", "x"]
 
         # Phase Component Fractions
         phases_fractions = results.iloc[:24, :].copy()
+
+        print(f"V: {V}, L: {L}")
         phases_fractions.index = [f"K_{c[1:]}" for c in NEQSIM_COMPONENTS.keys()]
 
         z = phases_fractions["z"]
         x = phases_fractions["x"]
-        phases_fractions.loc[:, "K"] = (z - x * nL) / (nV * x)
+        phases_fractions.loc[:, "K"] = (z - x * L) / (V * x)
+        print(phases_fractions)
 
         output = phases_fractions.T.loc["K", :].to_dict()
-        output["nV"] = nV
+        output["nV"] = V
 
         return output
 
@@ -459,12 +462,7 @@ class DataLoader:
         problem_type = ["classification", "regression"]
         assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
 
-        cv_folder = os.path.join(
-            self.processed_path,
-            "experimental",
-            problem,
-            f"{samples_per_composition:03d}points",
-        )
+        cv_folder = os.path.join(self.processed_path, "experimental", problem, f"{samples_per_composition:03d}points")
         self.train_files = glob.glob(os.path.join(cv_folder, "train_*.csv"))
         self.valid_files = glob.glob(os.path.join(cv_folder, "valid_*.csv"))
         self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))

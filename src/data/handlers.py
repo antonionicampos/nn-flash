@@ -21,8 +21,6 @@ from src.utils import create_fluid
 from typing import Any, List
 
 
-plt.style.use("seaborn-v0_8-paper")
-plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))
 pd.set_option("future.no_silent_downcasting", True)
 
 
@@ -370,14 +368,12 @@ class CrossValidation:
 
         return pd.DataFrame.from_records(samples)
 
-    def create_datasets(self, model: str, samples_per_composition: int):
-        assert model in [
-            "classification",
-            "regression",
-        ], "model argument can be only 'classification' or 'regression'"
+    def create_datasets(self, model: str, samples_per_composition: int = None):
+        models = ["classification", "regression", "synthesis"]
+        assert model in models, "model argument can only be 'classification', 'regression' or 'synthesis'"
         root_folder = os.path.join(self.data_folder, "processed", "experimental")
 
-        if model == "classification":
+        if model == "classification" and samples_per_composition:
             samples = self.classification_sampling(samples_per_composition)
 
             self.logger.info(f"Using Stratified K Fold with K = {self.k_folds}")
@@ -420,7 +416,7 @@ class CrossValidation:
                 self.logger.info(f"Train data saved on file {train_filepath}")
                 self.logger.info(f"Valid data saved on file {valid_filepath}")
                 self.logger.info(f"Test data saved on file {test_filepath}")
-        elif model == "regression":
+        elif model == "regression" and samples_per_composition:
             samples = self.regression_sampling(samples_per_composition)
 
             self.logger.info(f"Using K Fold with K = {self.k_folds}")
@@ -451,6 +447,36 @@ class CrossValidation:
                 self.logger.info(f"Train data saved on file {train_filepath}")
                 self.logger.info(f"Valid data saved on file {valid_filepath}")
                 self.logger.info(f"Test data saved on file {test_filepath}")
+        elif model == "synthesis":
+            k_folds = 5
+            self.logger.info(f"Using K Fold with K = {k_folds}")
+            kf = KFold(n_splits=k_folds, shuffle=True, random_state=self.random_state)
+            folder_path = os.path.join(root_folder, "synthesis")
+
+            if not os.path.isdir(folder_path):
+                os.makedirs(folder_path)
+
+            samples = self.processed_data.sample(frac=1, ignore_index=True)
+            for i, (train_i, test_i) in enumerate(kf.split(samples)):
+                train_size = train_i.shape[0] - test_i.shape[0]
+                train_i, valid_i = train_i[:train_size], train_i[train_size:]
+
+                self.logger.info(f">>>> Fold {i+1} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                self.logger.info(f"Train: {train_i.shape[0]}, valid: {valid_i.shape[0]}, test: {test_i.shape[0]}")
+
+                train = samples.iloc[train_i, :]
+                valid = samples.iloc[valid_i, :]
+                test = samples.iloc[test_i, :]
+
+                train_filepath = os.path.join(folder_path, f"train_fold={i+1:02d}.csv")
+                valid_filepath = os.path.join(folder_path, f"valid_fold={i+1:02d}.csv")
+                test_filepath = os.path.join(folder_path, f"test_fold={i+1:02d}.csv")
+                samples.iloc[train_i, :].to_csv(train_filepath, index=False)
+                samples.iloc[valid_i, :].to_csv(valid_filepath, index=False)
+                samples.iloc[test_i, :].to_csv(test_filepath, index=False)
+                self.logger.info(f"Train data saved on file {train_filepath}")
+                self.logger.info(f"Valid data saved on file {valid_filepath}")
+                self.logger.info(f"Test data saved on file {test_filepath}")
 
 
 class DataLoader:
@@ -458,11 +484,20 @@ class DataLoader:
         self.processed_path = os.path.join("data", "processed")
         self.raw_path = os.path.join("data", "raw")
 
-    def load_cross_validation_datasets(self, problem: str, samples_per_composition: int):
-        problem_type = ["classification", "regression"]
-        assert problem in problem_type, "problem parameter can only be 'classification' or 'regression'"
+    def load_cross_validation_datasets(self, problem: str, samples_per_composition: int = None):
+        problem_type = ["classification", "regression", "synthesis"]
+        assert problem in problem_type, "problem parameter can only be 'classification', 'regression' or 'synthesis'"
 
-        cv_folder = os.path.join(self.processed_path, "experimental", problem, f"{samples_per_composition:03d}points")
+        if problem in ["classification", "regression"] and samples_per_composition:
+            cv_folder = os.path.join(
+                self.processed_path,
+                "experimental",
+                problem,
+                f"{samples_per_composition:03d}points",
+            )
+        else:
+            cv_folder = os.path.join(self.processed_path, "experimental", problem)
+
         self.train_files = glob.glob(os.path.join(cv_folder, "train_*.csv"))
         self.valid_files = glob.glob(os.path.join(cv_folder, "valid_*.csv"))
         self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))
@@ -470,6 +505,7 @@ class DataLoader:
         datasets = {"train": [], "valid": [], "test": []}
         min_max = []
         for train_f, valid_f, test_f in zip(self.train_files, self.valid_files, self.test_files):
+
             train_features, train_targets = self.preprocessing(pd.read_csv(train_f), problem=problem)
             valid_features, valid_targets = self.preprocessing(pd.read_csv(valid_f), problem=problem)
             test_features, test_targets = self.preprocessing(pd.read_csv(test_f), problem=problem)
@@ -492,17 +528,21 @@ class DataLoader:
         processed_data = data.copy()
         processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
 
-        P_min, P_max = P_MIN_MAX
-        T_min, T_max = T_MIN_MAX
-        processed_data["P"] = (processed_data["P"] - P_min) / (P_max - P_min)
-        processed_data["T"] = (processed_data["T"] - T_min) / (T_max - T_min)
-
-        features = processed_data[FEATURES_NAMES].copy()
+        if problem in ["classification", "regression"]:
+            P_min, P_max = P_MIN_MAX
+            T_min, T_max = T_MIN_MAX
+            processed_data["P"] = (processed_data["P"] - P_min) / (P_max - P_min)
+            processed_data["T"] = (processed_data["T"] - T_min) / (T_max - T_min)
+            
+            features = processed_data[FEATURES_NAMES].copy()
 
         if problem == "classification":
             targets = pd.get_dummies(processed_data["class"], dtype=np.float32)
         elif problem == "regression":
             targets = processed_data[REGRESSION_TARGET_NAMES]
+        elif problem == "synthesis":
+            features = processed_data[FEATURES_NAMES[:-2]].copy()
+            targets = None
         return features, targets
 
     def load_processed_dataset(self):

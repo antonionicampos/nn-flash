@@ -10,7 +10,7 @@ from typing import Dict
 def load_model_hparams(hparameters):
     models_hparams = []
     for hp in hparameters:
-        if hp.get("model_type", "") == "svm":
+        if hp["model_type"] == "svm":
             svm_hparams = []
             # For 'poly' kernel
             params = dict(hp["params"])
@@ -28,7 +28,7 @@ def load_model_hparams(hparameters):
                 {"model_name": f"SVM #{i+1}", "model_type": hp["model_type"], "params": {**svm_hp}}
                 for i, svm_hp in enumerate(svm_hparams)
             ]
-        elif hp.get("model_type", "") == "neural_network":
+        elif hp["model_type"] == "neural_network" or hp["model_type"] == "wgan":
             if "model_name" in hp:
                 models_hparams += [dict(hp)]
             else:
@@ -56,6 +56,8 @@ def load_model_hparams(hparameters):
                     }
                     for i, nn_hp in enumerate(nn_hparams)
                 ]
+        elif hp["model_type"] == "dirichlet":
+            models_hparams += [dict(hp)]
 
     return [{"model_id": i + 1, **hp} for i, hp in enumerate(models_hparams)]
 

@@ -49,9 +49,7 @@ class WGAN(tf.keras.Model):
                 critic_loss = self.critic_loss_fn(real_logits, generated_logits)
 
             critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
-            self.critic_optimizer.apply_gradients(
-                zip(critic_grad, self.critic.trainable_variables)
-            )
+            self.critic_optimizer.apply_gradients(zip(critic_grad, self.critic.trainable_variables))
 
             # weight clipping of the critic model to enforce Lipschitz constraint
             for var in self.critic.trainable_variables:
@@ -64,12 +62,8 @@ class WGAN(tf.keras.Model):
 
             generator_loss = self.generator_loss_fn(generated_samples_logits)
 
-        generator_grad = tape.gradient(
-            generator_loss, self.generator.trainable_variables
-        )
-        self.generator_optimizer.apply_gradients(
-            zip(generator_grad, self.generator.trainable_variables)
-        )
+        generator_grad = tape.gradient(generator_loss, self.generator.trainable_variables)
+        self.generator_optimizer.apply_gradients(zip(generator_grad, self.generator.trainable_variables))
         return {"critic_loss": critic_loss, "generator_loss": generator_loss}
 
 
@@ -106,9 +100,7 @@ class WGANGP(tf.keras.Model):
         self.critic_loss_fn = critic_loss_fn
         self.generator_loss_fn = generator_loss_fn
 
-    def gradient_penalty(
-        self, batch_size: int, real_samples: tf.Tensor, generated_samples: tf.Tensor
-    ) -> tf.Tensor:
+    def gradient_penalty(self, batch_size: int, real_samples: tf.Tensor, generated_samples: tf.Tensor) -> tf.Tensor:
         """Calculates the gradient penalty.
 
         This loss is calculated on an interpolated image
@@ -119,9 +111,7 @@ class WGANGP(tf.keras.Model):
         axis = [batch_size] + [1 for _ in range(num_axis - 1)]
 
         random_number = tf.random.uniform(axis, dtype=tf.float32)
-        interpolated = (
-            random_number * real_samples + (1 - random_number) * generated_samples
-        )
+        interpolated = random_number * real_samples + (1 - random_number) * generated_samples
 
         with tf.GradientTape() as tape:
             tape.watch(interpolated)
@@ -154,9 +144,7 @@ class WGANGP(tf.keras.Model):
                 critic_loss += gp * self.lambda_
 
             critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
-            self.critic_optimizer.apply_gradients(
-                zip(critic_grad, self.critic.trainable_variables)
-            )
+            self.critic_optimizer.apply_gradients(zip(critic_grad, self.critic.trainable_variables))
 
         # Train the generator
         # Get latent vectors
@@ -167,12 +155,8 @@ class WGANGP(tf.keras.Model):
 
             generator_loss = self.generator_loss_fn(generated_samples_logits)
 
-        generator_grad = tape.gradient(
-            generator_loss, self.generator.trainable_variables
-        )
-        self.generator_optimizer.apply_gradients(
-            zip(generator_grad, self.generator.trainable_variables)
-        )
+        generator_grad = tape.gradient(generator_loss, self.generator.trainable_variables)
+        self.generator_optimizer.apply_gradients(zip(generator_grad, self.generator.trainable_variables))
 
         return {"critic_loss": critic_loss, "generator_loss": generator_loss}
 

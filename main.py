@@ -16,6 +16,7 @@ from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.train_models import ClassificationTraining
 from src.models.regression.evaluate_models import RegressionAnalysis
 from src.models.regression.train_models import RegressionTraining
+from src.models.synthesis.train_models import SynthesisTraining
 from src.visualization.classification import ClassificationViz
 from src.visualization.regression import RegressionViz
 
@@ -47,7 +48,7 @@ tensorflow_logger.propagate = False
 matplotlib_textmanager_logger.propagate = False
 
 logger_params = {
-    "format": "[%(asctime)s] %(levelname)s %(name)35s:%(lineno)3d | %(message)s",
+    "format": "[%(asctime)s] %(levelname)s %(name)s:%(lineno)3d | %(message)s",
     "filename": logs_filepath,
 }
 
@@ -58,14 +59,14 @@ if __name__ == "__main__":
         default="3",
         action="store",
         choices=["3", "30"],
-        required=True,
+        required=False,
         help="Select dataset depending on number of P, T samples per composition sample",
     )
     parser.add_argument(
         "--task",
         default=None,
         action="store",
-        choices=["classification", "regression"],
+        choices=["classification", "regression", "synthesis"],
         required=True,
         help="Task(s) to run pipeline",
     )
@@ -126,20 +127,32 @@ if __name__ == "__main__":
     if args.cross_validation:
         logger.info("Starting create cross-validation data")
         cv_data = CrossValidation(data_folder)
-        logger.info("Starting create classification cross-validation datasets")
-        cv_data.create_datasets(model="classification", samples_per_composition=samples_per_composition)
-        logger.info("Starting create regression cross-validation datasets")
-        cv_data.create_datasets(model="regression", samples_per_composition=samples_per_composition)
+
+        if args.task == "classification":
+            logger.info("Starting create classification cross-validation datasets")
+            cv_data.create_datasets(model="classification", samples_per_composition=samples_per_composition)
+        elif args.task == "regression":
+            logger.info("Starting create regression cross-validation datasets")
+            cv_data.create_datasets(model="regression", samples_per_composition=samples_per_composition)
+        elif args.task == "synthesis":
+            logger.info("Starting create synthesis cross-validation datasets")
+            cv_data.create_datasets(model="synthesis")
 
     if args.training:
         logger.info("Starting train models")
         classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
         regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
+        synthesis_training = SynthesisTraining()
 
         if args.task == "classification":
+            logger.info("Starting classification models training")
             classification_training.run()
         elif args.task == "regression":
+            logger.info("Starting regression models training")
             regression_training.run()
+        elif args.task == "synthesis":
+            logger.info("Starting synthesis models training")
+            synthesis_training.run()
 
     if args.analysis:
         logger.info("Starting analyze models")

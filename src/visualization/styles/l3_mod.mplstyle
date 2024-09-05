@@ -32,7 +32,6 @@ grid.linewidth: 0.8
 lines.linewidth: 1.4
 patch.linewidth: 0.24
 lines.markersize: 5.6
-lines.markeredgewidth: 0
 
 xtick.major.width: 0.8
 ytick.major.width: 0.8
@@ -40,3 +39,29 @@ xtick.minor.width: 0.4
 ytick.minor.width: 0.4
 xtick.major.pad: 5.6
 ytick.major.pad: 5.6
+
+# Color from grayscale style sheet
+lines.color: black
+patch.facecolor: gray
+patch.edgecolor: black
+
+text.color: black
+
+axes.facecolor: white
+axes.edgecolor: black
+axes.labelcolor: black
+# black to light gray
+axes.prop_cycle: cycler('color', ['0.00', '0.40', '0.60', '0.70'])
+
+xtick.color: black
+ytick.color: black
+
+grid.color: black
+
+#figure.facecolor: 0.75
+figure.edgecolor: white
+
+image.cmap: gray
+
+savefig.facecolor: white
+savefig.edgecolor: white

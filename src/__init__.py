@@ -1,5 +1,8 @@
-import matplotlib.pyplot as plt
-import os
+import matplotlib
+matplotlib.use("agg")
 
-plt.style.use("seaborn-v0_8-paper")
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import matplotlib.pyplot as plt
 plt.style.use(os.path.join("src", "visualization", "styles", "l3_mod.mplstyle"))

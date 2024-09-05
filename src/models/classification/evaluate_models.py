@@ -74,10 +74,6 @@ class ClassificationAnalysis:
 
                 self.confusion_matrices[j, i] = confusion_matrix(y_valid, y_valid_hat)
 
-                # # Cross-Entropy
-                # cross_entropy_values = tf.keras.losses.categorical_crossentropy(probs, probs_hat)
-                # self.cross_entropy[j, i] = tf.reduce_mean(cross_entropy_values)
-
         # Accuracy, Sensitivity, Sum-Product Index
         for model in np.arange(self.confusion_matrices.shape[1]):
             for fold in np.arange(self.confusion_matrices.shape[0]):

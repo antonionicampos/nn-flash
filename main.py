@@ -70,41 +70,11 @@ if __name__ == "__main__":
         required=True,
         help="Task(s) to run pipeline",
     )
-    parser.add_argument(
-        "-r",
-        "--read",
-        default=None,
-        action="store_true",
-        help="Read, transform and process raw data",
-    )
-    parser.add_argument(
-        "-cv",
-        "--cross-validation",
-        default=None,
-        action="store_true",
-        help="Create CV datasets from processed data",
-    )
-    parser.add_argument(
-        "-t",
-        "--training",
-        default=None,
-        action="store_true",
-        help="Do train step",
-    )
-    parser.add_argument(
-        "-a",
-        "--analysis",
-        default=None,
-        action="store_true",
-        help="Do Analysis Step",
-    )
-    parser.add_argument(
-        "-v",
-        "--visualization",
-        default=None,
-        action="store_true",
-        help="Create and save visualizations",
-    )
+    parser.add_argument("-r", "--read", default=None, action="store_true", help="Read, transform and process raw data")
+    parser.add_argument("-cv", "--cross-validation", default=None, action="store_true", help="Create CV datasets")
+    parser.add_argument("-t", "--training", default=None, action="store_true", help="Do train step")
+    parser.add_argument("-a", "--analysis", default=None, action="store_true", help="Do Analysis Step")
+    parser.add_argument("-v", "--viz", default=None, action="store_true", help="Create and save visualizations")
 
     args = parser.parse_args()
     samples_per_composition = int(args.samples_per_composition)
@@ -164,7 +134,7 @@ if __name__ == "__main__":
         elif args.task == "regression":
             regression_analysis.run()
 
-    if args.visualization:
+    if args.viz:
         logger.info("Starting create visualization")
         classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
         regression_viz = RegressionViz(samples_per_composition=samples_per_composition)

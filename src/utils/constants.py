@@ -163,7 +163,7 @@ REGRESSION_TARGET_NAMES = [
     "nV",
 ]
 
-TARGET_NAMES = ["Gas", "Mix", "Oil"]
+TARGET_NAMES = ["Vapor", "Mistura", "Líquido"]
 
 P_MIN_MAX = [10, 450]
 

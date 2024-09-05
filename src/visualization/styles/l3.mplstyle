@@ -4,8 +4,8 @@
 # Author: Valentin Niess (niess@in2p3.fr)
 
 # Set a 3/4 aspect ratio with automatic layout.
-figure.figsize: 8., 6.
-figure.autolayout: true
+#figure.figsize: 8., 6.
+#figure.autolayout: true
 
 # Use LaTeX fonts
 font.family: serif

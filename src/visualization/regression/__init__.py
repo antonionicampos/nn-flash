@@ -63,7 +63,7 @@ class RegressionViz:
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            mean, std = index.mean(axis=(0, 2)), index.mean(axis=2).std(axis=0) / np.sqrt(self.k_folds)
+            mean, std = index.mean(axis=(0, 2)), index.mean(axis=2).std(axis=0) / np.sqrt(self.k_folds - 1)
             data[name.replace("_", "\_")] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
 
         table = pd.DataFrame(data, index=model_names)
@@ -73,7 +73,12 @@ class RegressionViz:
             return np.where(mu == np.min(mu.values), props, "")
 
         table = table.style.apply(highlight, props="font-weight:bold;", axis=0)
-        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"), hrules=True, convert_css=True)
+        table.to_latex(
+            os.path.join(self.viz_folder, "performance_indices_table.tex"),
+            hrules=True,
+            convert_css=True,
+            column_format="lccccc",
+        )
         # table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"))
 
     def errorbar_plot(self, indices_names: List[str], by_model: bool):
@@ -88,7 +93,7 @@ class RegressionViz:
             for i, name in enumerate(indices_names):
                 ax1 = axs1[i] if len(indices_names) > 1 else axs1
                 y = self.indices[name].mean(axis=(0, 2))
-                y_err = self.indices[name].mean(axis=2).std(axis=0) / np.sqrt(self.k_folds)
+                y_err = self.indices[name].mean(axis=2).std(axis=0) / np.sqrt(self.k_folds - 1)
                 ax1.errorbar(x, y, y_err, c=f"C{i}", label=name, **errorbar_kwargs)
                 ax1.yaxis.grid()
                 ax1.set_xticks(x, labels, rotation=90, ha="center")
@@ -125,7 +130,7 @@ class RegressionViz:
                     kwargs = {"label": name, **errorbar_kwargs}
                     ax = axs[i] if len(indices_names) > 1 else axs
                     y = self.indices[name].mean(axis=0)[j, :]
-                    y_err = self.indices[name].std(axis=0)[j, :] / np.sqrt(self.k_folds)
+                    y_err = self.indices[name].std(axis=0)[j, :] / np.sqrt(self.k_folds - 1)
                     ax.errorbar(x, y, y_err, c=f"C{i}", **kwargs)
                     ax.yaxis.grid()
 

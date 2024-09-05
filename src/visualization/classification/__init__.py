@@ -89,13 +89,17 @@ class ClassificationViz:
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            mean, std = index.mean(axis=0), index.std(axis=0) / np.sqrt(self.k_folds)
+            if name == "cross_entropy":
+                continue
+                # mean, std = index.mean(axis=0), index.std(axis=0) / np.sqrt(self.k_folds - 1)
+            else:
+                mean, std = index.mean(axis=0) * 100, (index.std(axis=0) / np.sqrt(self.k_folds - 1)) * 100
             if len(self.indices[name].shape) == 2:
-                data[name] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
+                data[name] = [rf"{mu:.3f} \textpm {sigma:.3f} \%" for mu, sigma in zip(mean, std)]
             elif name == "sensitivity":
                 for i, label in enumerate(TARGET_NAMES):
                     data[f"{name}_{label.lower()}"] = [
-                        rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean[:, i], std[:, i])
+                        rf"{mu:.3f} \textpm {sigma:.3f} \%" for mu, sigma in zip(mean[:, i], std[:, i])
                     ]
 
         table = pd.DataFrame(data, index=model_names)
@@ -108,7 +112,12 @@ class ClassificationViz:
                 return np.where(mu == np.max(mu.values), props, "")
 
         table = table.style.apply(highlight, props="font-weight:bold;", axis=0)
-        table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"), hrules=True, convert_css=True)
+        table.to_latex(
+            os.path.join(self.viz_folder, "performance_indices_table.tex"),
+            hrules=True,
+            convert_css=True,
+            column_format="lccccc",
+        )
 
     def errorbar_plot(self, indices_names: List[str]):
         outputs = self.results["outputs"]
@@ -118,7 +127,7 @@ class ClassificationViz:
         for name in indices_names:
             f, ax = plt.subplots(figsize=(10, 5))
 
-            y, y_err = self.indices[name].mean(axis=0), self.indices[name].std(axis=0) / np.sqrt(self.k_folds)
+            y, y_err = self.indices[name].mean(axis=0), self.indices[name].std(axis=0) / np.sqrt(self.k_folds - 1)
             kwargs = {"c": "C0", "fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
             ax.errorbar(x, y, y_err, label=name.replace("_", " "), **kwargs)
             ax.yaxis.grid()
@@ -127,7 +136,7 @@ class ClassificationViz:
 
             f.tight_layout()
             f.savefig(os.path.join(self.viz_folder, f"{name}_errorbar_plot.png"), dpi=DPI)
-            plt.close("all")
+            plt.close()
 
     def roc_curves(self, xlim: Tuple[float] = (), ylim: Tuple[float] = ()):
         n_folds = len(self.results["outputs"][0]["folds"])
@@ -164,7 +173,7 @@ class ClassificationViz:
                 mean_tpr = np.mean(tprs, axis=0)
                 mean_tpr[-1] = 1.0
                 mean_auc = auc(mean_fpr, mean_tpr)
-                std_auc = np.std(aucs) / np.sqrt(self.k_folds)
+                std_auc = np.std(aucs) / np.sqrt(self.k_folds - 1)
                 axs[label].step(
                     mean_fpr,
                     mean_tpr,
@@ -199,8 +208,11 @@ class ClassificationViz:
                 if ylim:
                     axs[label].set_ylim(ylim)
             f.tight_layout()
-            f.savefig(os.path.join(self.viz_folder, f"roc_curves_model_id={model_id}.png"), dpi=DPI)
-            plt.close("all")
+
+            if not os.path.isdir(os.path.join(self.viz_folder, "roc_curves")):
+                os.mkdir(os.path.join(self.viz_folder, "roc_curves"))
+            f.savefig(os.path.join(self.viz_folder, "roc_curves", f"model_id={model_id}.png"), dpi=DPI)
+            plt.close()
 
     def phase_diagram(
         self,
@@ -334,11 +346,51 @@ class ClassificationViz:
                 ax.set_ylabel("Pressão [bara]")
                 f.tight_layout()
                 f.savefig(os.path.join(self.viz_folder, f"phase_diagram_model_id={model_id}.png"), dpi=DPI)
-            plt.close("all")
+            plt.close()
+
+    def confusion_matrix_plot(self):
+        model_names = [res["model_name"].replace("#", "\#") for res in self.results["outputs"]]
+
+        for i, model_info in enumerate(self.results["outputs"]):
+            model_type = model_info["model_type"]
+            model_id = model_info["model_id"]
+
+            self.logger.info(f"Confusion Matrix for model ID: {model_id} and model type: {model_type}")
+
+            cm = self.indices["confusion_matrix"][:, i, :, :].astype("int16")
+
+            cm = cm / np.sum(cm, axis=2)[:, :, None]
+
+            f, ax = plt.subplots()
+            cm_mean = np.mean(cm, axis=0)
+            cm_std = np.std(cm, axis=0) / np.sqrt(self.k_folds - 1)
+
+            ax.matshow(cm_mean, alpha=0.5, cmap="Greys")
+            for ii in range(cm_mean.shape[0]):
+                for jj in range(cm_mean.shape[1]):
+                    text = f"{cm_mean[ii, jj] * 100:1.3f} \\textpm \n {cm_std[ii, jj] * 100:1.3f} \%"
+                    ax.text(x=jj, y=ii, s=text, va="center", ha="center", size="x-large")
+
+            ax.set_xlabel("Classes Estimadas")
+            ax.set_ylabel("Classes Reais")
+            ax.set_title(model_names[i])
+
+            # 0: gas, 1: mix, 2: oil
+            ax.set_xticks([0, 1, 2], ["Vapor", "Mistura", "Líquido"])
+            ax.set_yticks([0, 1, 2], ["Vapor", "Mistura", "Líquido"])
+            ax.grid(False)
+
+            f.tight_layout()
+
+            if not os.path.isdir(os.path.join(self.viz_folder, "confusion_matrix")):
+                os.mkdir(os.path.join(self.viz_folder, "confusion_matrix"))
+            plt.savefig(os.path.join(self.viz_folder, "confusion_matrix", f"model_id={model_id}.png"), dpi=DPI)
+            plt.close()
 
     def create(self):
         self.logger.info("Starting ROC curves creation")
         self.roc_curves()
+        self.confusion_matrix_plot()
         self.models_table()
         self.performance_indices_table()
         self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])

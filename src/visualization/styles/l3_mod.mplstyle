@@ -57,6 +57,7 @@ xtick.color: black
 ytick.color: black
 
 grid.color: black
+grid.alpha: 0.2
 
 #figure.facecolor: 0.75
 figure.edgecolor: white

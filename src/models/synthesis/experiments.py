@@ -22,6 +22,3 @@ hparams = [
         },
     },
 ]
-
-lambda_ = 10.0
-n_critic = 5

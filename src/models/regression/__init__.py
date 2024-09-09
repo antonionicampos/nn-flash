@@ -1,5 +1,29 @@
 import tensorflow as tf
 
+from src.utils import denorm
+
+
+class MeanSquaredErrorWithSoftConstraint:
+
+    def __init__(self, lambda_: float) -> None:
+        self.lambda_ = lambda_
+
+    def __call__(self, y_true, y_pred, inputs, min_vals, max_vals):
+        y_pred_denorm = tf.convert_to_tensor(denorm(y_pred, min_vals, max_vals), dtype=tf.float32)
+
+        Khat = y_pred_denorm[:, :-1]
+        nVhat = y_pred_denorm[:, -1:]
+
+        xhat = inputs[:, :-2] / (1 + nVhat * (Khat - 1))
+        yhat = Khat * xhat
+
+        sum_xhat = tf.reduce_sum(xhat, axis=-1, keepdims=True)
+        sum_yhat = tf.reduce_sum(yhat, axis=-1, keepdims=True)
+        mse = tf.reduce_mean(tf.square(y_true - y_pred), axis=-1, keepdims=True)
+
+        loss = mse + self.lambda_ * tf.abs(sum_xhat + sum_yhat - 2)
+        return tf.reduce_mean(loss)
+
 
 class NeuralNet(tf.keras.Model):
     def __init__(self, hidden_units, activation, *args, **kwargs):

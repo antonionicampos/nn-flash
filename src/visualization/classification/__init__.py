@@ -127,7 +127,8 @@ class ClassificationViz:
         for name in indices_names:
             f, ax = plt.subplots(figsize=(10, 5))
 
-            y, y_err = self.indices[name].mean(axis=0), self.indices[name].std(axis=0) / np.sqrt(self.k_folds - 1)
+            y = self.indices[name].mean(axis=0) * 100
+            y_err = (self.indices[name].std(axis=0) / np.sqrt(self.k_folds - 1)) * 100
             kwargs = {"c": "C0", "fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
             ax.errorbar(x, y, y_err, label=name.replace("_", " "), **kwargs)
             ax.yaxis.grid()

@@ -242,7 +242,7 @@ class CrossValidation:
         self.logger = logging.getLogger(__name__)
         self.data_folder = data_folder
         self.processed_data = pd.read_csv(os.path.join(self.data_folder, "processed", "thermo_processed_data.csv"))
-        self.processed_data = self.processed_data.drop_duplicates()
+        self.processed_data = self.processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2])
 
         self.random_state = 13
         self.k_folds = 10
@@ -526,6 +526,7 @@ class DataLoader:
 
     def preprocessing(self, data: pd.DataFrame, problem: str):
         processed_data = data.copy()
+        processed_data = processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2])
         processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
 
         if problem in ["classification", "regression"]:

@@ -95,14 +95,15 @@ class ClassificationViz:
             else:
                 mean, std = index.mean(axis=0) * 100, (index.std(axis=0) / np.sqrt(self.k_folds - 1)) * 100
             if len(self.indices[name].shape) == 2:
-                data[name] = [rf"{mu:.3f} \textpm {sigma:.3f} \%" for mu, sigma in zip(mean, std)]
+                data[name] = [rf"{mu:.2f} \textpm {sigma:.2f}" for mu, sigma in zip(mean, std)]
             elif name == "sensitivity":
                 for i, label in enumerate(TARGET_NAMES):
                     data[f"{name}_{label.lower()}"] = [
-                        rf"{mu:.3f} \textpm {sigma:.3f} \%" for mu, sigma in zip(mean[:, i], std[:, i])
+                        rf"{mu:.2f} \textpm {sigma:.2f}" for mu, sigma in zip(mean[:, i], std[:, i])
                     ]
 
         table = pd.DataFrame(data, index=model_names)
+        table.columns = [f"{' '.join([s.capitalize() for s in col.split('_')])} [\%]" for col in table.columns]
 
         def highlight(s, props=""):
             mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
@@ -179,7 +180,7 @@ class ClassificationViz:
                     mean_fpr,
                     mean_tpr,
                     color="b",
-                    label=r"ROC Médio (AUC = %0.3f $\pm$ %0.3f)" % (mean_auc, std_auc),
+                    label=r"ROC Médio (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
                     lw=1,
                     alpha=0.8,
                 )
@@ -369,7 +370,7 @@ class ClassificationViz:
             ax.matshow(cm_mean, alpha=0.5, cmap="Greys")
             for ii in range(cm_mean.shape[0]):
                 for jj in range(cm_mean.shape[1]):
-                    text = f"{cm_mean[ii, jj] * 100:1.3f} \\textpm \n {cm_std[ii, jj] * 100:1.3f} \%"
+                    text = f"{cm_mean[ii, jj] * 100:1.2f} \\textpm \n {cm_std[ii, jj] * 100:1.2f} \%"
                     ax.text(x=jj, y=ii, s=text, va="center", ha="center", size="x-large")
 
             ax.set_xlabel("Classes Estimadas")
@@ -394,6 +395,6 @@ class ClassificationViz:
         self.confusion_matrix_plot()
         self.models_table()
         self.performance_indices_table()
-        self.errorbar_plot(indices_names=["sp_index", "cross_entropy"])
+        self.errorbar_plot(indices_names=["sp_index"])
         # self.phase_diagram(use_mean_prediction=False)
         # self.phase_diagram(use_mean_prediction=True)

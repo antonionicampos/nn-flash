@@ -64,9 +64,10 @@ class RegressionViz:
         for name in self.indices.keys():
             index = self.indices[name]
             mean, std = index.mean(axis=(0, 2)), index.mean(axis=2).std(axis=0) / np.sqrt(self.k_folds - 1)
-            data[name.replace("_", "\_")] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
+            data[name.replace("_", "\_")] = [rf"{mu:.2f} \textpm {sigma:.2f}" for mu, sigma in zip(mean, std)]
 
         table = pd.DataFrame(data, index=model_names)
+        table.columns = [" ".join([s.capitalize() for s in col.split("_")]) for col in table.columns]
 
         def highlight(s, props=""):
             mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
@@ -79,7 +80,6 @@ class RegressionViz:
             convert_css=True,
             column_format="lccccc",
         )
-        # table.to_latex(os.path.join(self.viz_folder, "performance_indices_table.tex"))
 
     def errorbar_plot(self, indices_names: List[str], by_model: bool):
         outputs = self.results["outputs"]

@@ -242,7 +242,7 @@ class CrossValidation:
         self.logger = logging.getLogger(__name__)
         self.data_folder = data_folder
         self.processed_data = pd.read_csv(os.path.join(self.data_folder, "processed", "thermo_processed_data.csv"))
-        self.processed_data = self.processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2])
+        self.processed_data = self.processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
 
         self.random_state = 13
         self.k_folds = 10
@@ -272,14 +272,11 @@ class CrossValidation:
 
         # Phase Component Fractions
         phases_fractions = results.iloc[:24, :].copy()
-
-        print(f"V: {V}, L: {L}")
         phases_fractions.index = [f"K_{c[1:]}" for c in NEQSIM_COMPONENTS.keys()]
 
         z = phases_fractions["z"]
         x = phases_fractions["x"]
         phases_fractions.loc[:, "K"] = (z - x * L) / (V * x)
-        print(phases_fractions)
 
         output = phases_fractions.T.loc["K", :].to_dict()
         output["nV"] = V
@@ -526,7 +523,7 @@ class DataLoader:
 
     def preprocessing(self, data: pd.DataFrame, problem: str):
         processed_data = data.copy()
-        processed_data = processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2])
+        processed_data = processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
         processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
 
         if problem in ["classification", "regression"]:

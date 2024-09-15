@@ -110,36 +110,36 @@ if __name__ == "__main__":
 
     if args.training:
         logger.info("Starting train models")
-        classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
-        regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
-        synthesis_training = SynthesisTraining()
 
         if args.task == "classification":
             logger.info("Starting classification models training")
+            classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
             classification_training.run()
         elif args.task == "regression":
             logger.info("Starting regression models training")
+            regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
             regression_training.run()
         elif args.task == "synthesis":
             logger.info("Starting synthesis models training")
+            synthesis_training = SynthesisTraining()
             synthesis_training.run()
 
     if args.analysis:
         logger.info("Starting analyze models")
-        classification_analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
-        regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
 
         if args.task == "classification":
+            classification_analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
             classification_analysis.run()
         elif args.task == "regression":
+            regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
             regression_analysis.run()
 
     if args.viz:
         logger.info("Starting create visualization")
-        classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
-        regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
 
         if args.task == "classification":
+            classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
             classification_viz.create()
         elif args.task == "regression":
+            regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
             regression_viz.create()

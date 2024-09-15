@@ -173,20 +173,20 @@ class DataTransform:
                     list(thermoOps.getOperation().get("dewP")),
                     label="dew point",
                     alpha=0.25,
-                    color="C0",
+                    color="darkblue",
                 )
                 ax.plot(
                     list(thermoOps.getOperation().get("bubT")),
                     list(thermoOps.getOperation().get("bubP")),
                     label="bubble point",
                     alpha=0.25,
-                    color="C1",
+                    color="green",
                 )
 
         if savefig:
             ax.set_title("Diagrama de fases PT")
             ax.set_xlabel("Temperatura [K]")
-            ax.set_ylabel("Pressão [bar a]")
+            ax.set_ylabel("Pressão [bara]")
             f.tight_layout()
 
             filepath = os.path.join(self.images_folder, "phase_diagrams.png")

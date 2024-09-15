@@ -70,6 +70,14 @@ if __name__ == "__main__":
         required=True,
         help="Task(s) to run pipeline",
     )
+    parser.add_argument(
+        "--regression-loss",
+        default="mse",
+        action="store",
+        choices=["mse", "mse_with_constraint"],
+        required=False,
+        help="Regression loss function",
+    )
     parser.add_argument("-r", "--read", default=None, action="store_true", help="Read, transform and process raw data")
     parser.add_argument("-cv", "--cross-validation", default=None, action="store_true", help="Create CV datasets")
     parser.add_argument("-t", "--training", default=None, action="store_true", help="Do train step")
@@ -118,7 +126,12 @@ if __name__ == "__main__":
         elif args.task == "regression":
             logger.info("Starting regression models training")
             regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
-            regression_training.run()
+
+            if args.regression_loss == "mse":
+                regression_training.run()
+            elif args.regression_loss == "mse_with_constraint":
+                regression_training.train_mse_loss_with_soft_constraint()
+                # regression_training.plot_mse_loss_with_soft_constraint()
         elif args.task == "synthesis":
             logger.info("Starting synthesis models training")
             synthesis_training = SynthesisTraining()

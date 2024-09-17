@@ -7,5 +7,4 @@ pandas
 rich
 scikit-learn
 seaborn
-tensorflow
 umap-learn

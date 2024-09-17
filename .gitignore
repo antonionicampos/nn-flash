@@ -1,4 +1,10 @@
+.config/
+.keras/
+.nv/
 data/*
+.bash_history
+*.out
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

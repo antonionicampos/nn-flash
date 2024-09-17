@@ -8,10 +8,11 @@ import pickle
 import tensorflow as tf
 
 from datetime import datetime
+from itertools import product
 from src.data.handlers import DataLoader
-from src.models.regression import NeuralNet, ResidualNeuralNet
+from src.models.regression import NeuralNet, ResidualNeuralNet, MeanSquaredErrorWithSoftConstraint
 from src.models.regression.experiments import hparams
-from src.utils import load_model_hparams
+from src.utils import denorm, load_model_hparams
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -251,3 +252,161 @@ class RegressionTraining:
 
         results["outputs"] = sorted(model_results, key=lambda item: item["model_id"])
         return results
+
+    def convert_K_to_XY(self, outputs, inputs):
+        K = outputs[:, :-1]
+        V = outputs[:, -1:]
+        Z = inputs[:, :-2]
+        L = 1 - V
+        X = Z / (L + V * K)
+        Y = K * X
+        return X, Y
+
+    def train_mse_loss_with_soft_constraint(self, log=False):
+        """...
+        
+        Results format:
+
+        results = {
+            "samples_per_composition": int,
+            "outputs": [
+                {
+                    "model_id": int,
+                    "model_name": str,
+                    "arch": {"hidden_units": List[int], "activation": str},
+                    "opt": {"lr": float, "epochs": int, "batch_size": int},
+                    "folds": [
+                        {"fold": int, "model": tf.keras.Model, "history": tf.keras.callbacks.History},
+                        ...
+                    ]
+                },
+                ...
+            ]
+        }"""
+        params = {"hidden_layers": [3, 4, 5, 6, 7], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3, 1e-1]}
+
+        dl = DataLoader()
+        datasets, minmax = dl.load_cross_validation_datasets(
+            problem="regression",
+            samples_per_composition=self.samples_per_composition,
+        )
+
+        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        self.hyperparameters = list(product(*[vals for vals in params.values()]))
+        for i, (hidden_units, neurons, lambda_) in enumerate(self.hyperparameters):
+            hparams = {"hidden_units": [neurons for _ in range(hidden_units)], "lambda": lambda_}
+            r = {"hparams": {**hparams}, "folds": []}
+            start = datetime.now()
+
+            hidden_units = hparams["hidden_units"]
+            activation = "relu"
+            batch_size = 32
+            epochs = 500
+            lr = 0.001
+            lambda_ = hparams["lambda"]
+
+            # 10% das épocas com a restrição
+
+            train_log = "Epoch: {:04d}, train loss: {:.5f}, valid loss: {:.5f}"
+
+            for j, (train, valid, minmax_vals) in enumerate(zip(datasets["train"], datasets["valid"], minmax)):
+                min_vals, max_vals = minmax_vals
+                min_vals = tf.convert_to_tensor(min_vals, dtype=tf.float32)
+                max_vals = tf.convert_to_tensor(max_vals, dtype=tf.float32)
+                x_train = tf.convert_to_tensor(train["features"], dtype=tf.float32)
+                y_train = tf.convert_to_tensor(train["targets"], dtype=tf.float32)
+                x_valid = tf.convert_to_tensor(valid["features"], dtype=tf.float32)
+                y_valid = tf.convert_to_tensor(valid["targets"], dtype=tf.float32)
+
+                train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(batch_size)
+
+                model = NeuralNet(hidden_units, activation)
+                optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+                loss_func = MeanSquaredErrorWithSoftConstraint(lambda_=lambda_)
+
+                train_losses, valid_losses = [], []
+                for epoch in range(epochs):
+                    for x_batch_train, y_batch_train in train_dataset:
+
+                        # Record operations
+                        with tf.GradientTape() as tape:
+                            y_hat = model(x_batch_train, training=True)
+                            loss_val = loss_func(y_batch_train, y_hat, x_batch_train, min_vals, max_vals)
+
+                        # Grads dloss/dwij
+                        grads = tape.gradient(loss_val, model.trainable_weights)
+
+                        # Optimizer using grads
+                        optimizer.apply_gradients(zip(grads, model.trainable_weights))
+
+                        # Validation loss
+                        loss_val = loss_func(y_batch_train, y_hat, x_batch_train, min_vals, max_vals)
+
+                    y_hat_train = model(x_train)
+                    y_hat_valid = model(x_valid)
+                    train_loss = loss_func(y_train, y_hat_train, x_train, min_vals, max_vals)
+                    valid_loss = loss_func(y_valid, y_hat_valid, x_valid, min_vals, max_vals)
+
+                    train_losses.append(float(train_loss))
+                    valid_losses.append(float(valid_loss))
+
+                    if log and (epoch + 1) % 100 == 0:
+                        self.logger.info(train_log.format(epoch + 1, float(train_loss), float(valid_loss)))
+
+                y_hat_valid = model(x_valid)
+                y_pred = denorm(y_hat_valid, min_vals, max_vals)
+                xi_pred, yi_pred = self.convert_K_to_XY(y_pred, x_valid)
+
+                self.logger.info(f"hparams: {hparams}, fold: {j+1}, valid loss: {valid_losses[-1]}")
+
+                r["folds"].append(
+                    {
+                        "fold": j + 1,
+                        "train_losses": train_losses,
+                        "valid_losses": valid_losses,
+                        "summ_xi_hat": xi_pred.numpy().sum(axis=-1).mean(),
+                        "summ_yi_hat": yi_pred.numpy().sum(axis=-1).mean(),
+                    }
+                )
+
+            end = datetime.now()
+            results["outputs"].append(r)
+            self.logger.info(f"training model: {i+1}/{len(self.hyperparameters)}, elapsed time: {end - start}")
+
+        results_folder = os.path.join(
+            "data",
+            "models",
+            "regression_with_constrained_loss",
+            "saved_results",
+            f"{self.samples_per_composition:03d}points",
+        )
+        self.save_pickle(results_folder, results)
+
+    def plot_mse_loss_with_soft_constraint(self):
+        xy = np.zeros((len(self.hyperparameters), 2))
+
+        hparams = pd.DataFrame(self.hyperparameters).sort_values([2, 0, 1])
+        sorted_idx = pd.DataFrame(self.hyperparameters).sort_values([2, 0, 1]).index
+
+        losses = np.array([r["valid_losses"][-1] for r in results])
+
+        f, axs = plt.subplots(2, 1, figsize=(12, 5), sharex=True)
+        axs[0].errorbar(np.arange(len(hparams)), xy[sorted_idx, 0], fmt="o-", label="$\sum \widehat{x_i}$")
+        axs[0].errorbar(np.arange(len(hparams)), xy[sorted_idx, 1], fmt="o-", label="$\sum \widehat{y_i}$")
+        axs[0].axhline(1.0, ls="--")
+        axs[0].axvspan(11.5, 23.5, alpha=0.2)
+
+        # axs[0].set_ylim(bottom=0.15)
+        axs[0].text(-1.2, 0.94, "$\lambda = 0.0$", fontsize=14)
+        axs[0].text(11.8, 0.94, "$\lambda = 0.1$", fontsize=14)
+        axs[0].text(23.8, 0.94, "$\lambda = 100.0$", fontsize=14)
+        # axs[0].set_xticks(np.arange(len(hyperparameters)), hyperparameters, rotation="vertical")
+        axs[0].legend()
+
+        axs[1].plot(losses[sorted_idx], "o-", label="loss")
+        axs[1].set_xticks(np.arange(len(hparams)), hparams.to_records(index=False), rotation="vertical")
+        axs[1].axvspan(11.5, 23.5, alpha=0.2)
+        axs[1].legend()
+
+        plt.subplots_adjust(hspace=0.1)
+        f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)

@@ -285,7 +285,7 @@ class ClassificationTraining:
                 elif model_obj["model_type"] == "svm":
                     with open(os.path.join(fold_folder, "model.joblib"), "rb") as f:
                         model = joblib.load(f)
-                    folds.append({"fold": fold + 1, "history": history, "model": model})
+                    folds.append({"fold": fold + 1, "model": model})
 
             model_results.append({"folds": folds, **model_obj})
         results["outputs"] = sorted(model_results, key=lambda item: item["model_id"])

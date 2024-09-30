@@ -18,16 +18,24 @@ from tqdm import tqdm
 
 class SynthesisTraining:
 
-    def __init__(self):
+    def __init__(self, samples_per_composition):
+        self.samples_per_composition = samples_per_composition
         self.logger = logging.getLogger(__name__)
-        self.results_folder = os.path.join("data", "models", "synthesis", "saved_models")
+        self.results_folder = os.path.join(
+            "data",
+            "models",
+            "synthesis",
+            "saved_models",
+            f"{samples_per_composition:03d}points",
+        )
 
     def run(self):
         data_loader = DataLoader()
         cv_data, _ = data_loader.load_cross_validation_datasets(problem="synthesis")
         train_data = cv_data["train"]
 
-        results = {"outputs": []}
+        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        training_start = datetime.now()
         for hp in load_model_hparams(hparams):
             model_name = hp["model_name"]
             model_type = hp["model_type"]
@@ -77,11 +85,7 @@ class SynthesisTraining:
 
                     # Get the Wasserstein GAN model
                     wgan = WGANGP(
-                        critic=critic,
-                        generator=generator,
-                        latent_dim=latent_dim,
-                        n_critic=n_critic,
-                        lambda_=lambda_,
+                        critic=critic, generator=generator, latent_dim=latent_dim, n_critic=n_critic, lambda_=lambda_
                     )
 
                     # Compile the Wasserstein GAN model
@@ -92,10 +96,17 @@ class SynthesisTraining:
                         generator_loss_fn=generator_loss,
                     )
 
-                    wgan.fit(dataset, epochs=epochs, callbacks=[CustomHistory()])
+                    callbacks = [CustomHistory()]
+                    wgan.fit(dataset, epochs=epochs, callbacks=callbacks)
 
-                    # critic.save("notebooks\\models\\critic_model.keras")
-                    # generator.save("notebooks\\models\\generator_model.keras")
+                    folds.append(
+                        {
+                            "fold": fold + 1,
+                            "critic": critic,
+                            "generator": generator,
+                            "neg_critic_loss": -np.array(callbacks[0].history["critic_loss"]),
+                        }
+                    )
 
                     # neg_critic_loss = -np.array(callbacks[0].history["critic_loss"])
                     # batches = neg_critic_loss.shape[0]
@@ -107,8 +118,9 @@ class SynthesisTraining:
             results["outputs"].append(model_results)
             self.logger.info(f"{model_name} training elapsed Time: {datetime.now() - training_model_start}")
 
-            print(results)
-            break
+        self.logger.info("Saving models")
+        self.logger.info(f"Total elapsed Time: {datetime.now() - training_start}")
+        self.save_training_models(results)
 
     def load_pickle(self, filepath):
         with open(filepath, "rb") as f:
@@ -165,18 +177,25 @@ class SynthesisTraining:
 
             for fold_results in folds:
                 fold = fold_results["fold"]
-                history = fold_results["history"]
-                model = fold_results["model"]
 
                 fold_folder = os.path.join(model_folder, f"Fold{fold}")
                 if not os.path.isdir(fold_folder):
                     os.mkdir(fold_folder)
 
-                # Saving tf.keras.callbacks.History object to CSV file
-                history.to_csv(os.path.join(fold_folder, "history.csv"), index=False)
+                if output["model_type"] == "wgan":
+                    neg_critic_loss = fold_results["history"]
+                    critic = fold_results["critic"]
+                    generator = fold_results["generator"]
 
-                # Saving tf.keras.Model weights
-                model.save(os.path.join(fold_folder, "model.keras"))
+                    # Saving critic loss
+                    self.save_pickle(os.path.join(fold_folder, "neg_critic_loss.pickle"), neg_critic_loss)
+
+                    # Saving tf.keras.Model weights
+                    critic.save(os.path.join(fold_folder, "critic.keras"))
+                    generator.save(os.path.join(fold_folder, "generator.keras"))
+                elif output["model_type"] == "dirichlet":
+                    alpha = fold_results["alpha"]
+                    self.save_pickle(os.path.join(fold_folder, "alpha.pickle"), alpha)
 
     def load_training_models(self):
         """Load regression models training results"""

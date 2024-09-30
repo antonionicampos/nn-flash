@@ -128,13 +128,15 @@ if __name__ == "__main__":
             regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
 
             if args.regression_loss == "mse":
+                logger.info("Training regression models with default loss function")
                 regression_training.run()
             elif args.regression_loss == "mse_with_constraint":
+                logger.info("Training regression models with constrained loss function")
                 regression_training.train_mse_loss_with_soft_constraint()
-                # regression_training.plot_mse_loss_with_soft_constraint()
+
         elif args.task == "synthesis":
             logger.info("Starting synthesis models training")
-            synthesis_training = SynthesisTraining()
+            synthesis_training = SynthesisTraining(samples_per_composition=samples_per_composition)
             synthesis_training.run()
 
     if args.analysis:

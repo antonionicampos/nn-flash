@@ -35,7 +35,7 @@ class RegressionTraining:
         )
 
     def run(self):
-        """Train regression models defined on models_specs.py script
+        """Train regression models defined on experiments.py script
 
         Results format:
 
@@ -264,8 +264,7 @@ class RegressionTraining:
         return X, Y
 
     def train_mse_loss_with_soft_constraint(self, log=False):
-        """...
-
+        """Training models using a modified MSE Loss with output composition constraint
 
         Results format:
 
@@ -282,7 +281,7 @@ class RegressionTraining:
                 ...
             ]
         }"""
-        params = {"hidden_layers": [3, 4, 5], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3, 1e-1]}
+        params = {"hidden_layers": [3, 4, 5], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3]}
 
         results_folder = os.path.join(
             "data",
@@ -318,6 +317,7 @@ class RegressionTraining:
             train_log = "Epoch: {:04d}, train loss: {:.5f}, valid loss: {:.5f}"
 
             for j, (train, valid, minmax_vals) in enumerate(zip(datasets["train"], datasets["valid"], minmax)):
+                best_model_path = os.path.join(results_folder, f"best_model_model_id={i}_fold={j}.keras")
                 min_vals, max_vals = minmax_vals
                 min_vals = tf.convert_to_tensor(min_vals, dtype=tf.float32)
                 max_vals = tf.convert_to_tensor(max_vals, dtype=tf.float32)
@@ -359,15 +359,15 @@ class RegressionTraining:
                     train_losses.append(float(train_loss))
                     valid_losses.append(float(valid_loss))
 
-                    if valid_loss < best_valid_loss:
-                        tf.keras.models.save_model(
-                            model,
-                        )
+                    if float(valid_loss) < best_valid_loss:
+                        tf.keras.models.save_model(model, best_model_path)
+                        best_valid_loss = float(valid_loss)
 
                     if log and (epoch + 1) % 100 == 0:
                         self.logger.info(train_log.format(epoch + 1, float(train_loss), float(valid_loss)))
 
-                y_hat_valid = model(x_valid)
+                final_model = tf.keras.models.load_model(best_model_path)
+                y_hat_valid = final_model(x_valid)
                 y_pred = denorm(y_hat_valid, min_vals, max_vals)
                 xi_pred, yi_pred = self.convert_K_to_XY(y_pred, x_valid)
 
@@ -378,6 +378,7 @@ class RegressionTraining:
                         "fold": j + 1,
                         "train_losses": train_losses,
                         "valid_losses": valid_losses,
+                        "best_valid_loss": best_valid_loss,
                         "summ_xi_hat": xi_pred.numpy().sum(axis=-1).mean(),
                         "summ_yi_hat": yi_pred.numpy().sum(axis=-1).mean(),
                     }
@@ -453,7 +454,5 @@ class RegressionTraining:
             axs[0].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
             axs[1].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
         plt.subplots_adjust(hspace=0.1)
-        # f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)
-
-        plt.show()
+        f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)
         return results

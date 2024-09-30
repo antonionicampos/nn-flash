@@ -264,17 +264,14 @@ class RegressionTraining:
 
     def train_mse_loss_with_soft_constraint(self, log=False):
         """...
-        
+
         Results format:
 
         results = {
             "samples_per_composition": int,
             "outputs": [
                 {
-                    "model_id": int,
-                    "model_name": str,
-                    "arch": {"hidden_units": List[int], "activation": str},
-                    "opt": {"lr": float, "epochs": int, "batch_size": int},
+                    "hparams": {"hidden_units": List[int], "activation": str},
                     "folds": [
                         {"fold": int, "model": tf.keras.Model, "history": tf.keras.callbacks.History},
                         ...
@@ -283,7 +280,18 @@ class RegressionTraining:
                 ...
             ]
         }"""
-        params = {"hidden_layers": [3, 4, 5, 6, 7], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3, 1e-1]}
+        params = {"hidden_layers": [3, 4, 5], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3, 1e-1]}
+
+        results_folder = os.path.join(
+            "data",
+            "models",
+            "regression_with_constrained_loss",
+            "saved_results",
+            f"{self.samples_per_composition:03d}points",
+        )
+
+        if not os.path.isdir(results_folder):
+            os.makedirs(results_folder)
 
         dl = DataLoader()
         datasets, minmax = dl.load_cross_validation_datasets(
@@ -304,8 +312,6 @@ class RegressionTraining:
             epochs = 500
             lr = 0.001
             lambda_ = hparams["lambda"]
-
-            # 10% das épocas com a restrição
 
             train_log = "Epoch: {:04d}, train loss: {:.5f}, valid loss: {:.5f}"
 
@@ -373,14 +379,7 @@ class RegressionTraining:
             results["outputs"].append(r)
             self.logger.info(f"training model: {i+1}/{len(self.hyperparameters)}, elapsed time: {end - start}")
 
-        results_folder = os.path.join(
-            "data",
-            "models",
-            "regression_with_constrained_loss",
-            "saved_results",
-            f"{self.samples_per_composition:03d}points",
-        )
-        self.save_pickle(results_folder, results)
+            self.save_pickle(os.path.join(results_folder, "train_results.pickle"), results)
 
     def plot_mse_loss_with_soft_constraint(self):
         xy = np.zeros((len(self.hyperparameters), 2))

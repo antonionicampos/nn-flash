@@ -8,13 +8,12 @@ import tensorflow as tf
 from datetime import datetime
 from neqsim.thermo import TPflash
 from sklearn.metrics import RocCurveDisplay, auc
-from sklearn.preprocessing import LabelBinarizer
 from src.data.handlers import DataLoader
 from src.models.classification.train_models import ClassificationTraining
 from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.utils import binary_classification
 from src.utils import create_fluid
-from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX, FEATURES_NAMES
+from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX
 from typing import List, Tuple
 
 plt.style.use("seaborn-v0_8-paper")

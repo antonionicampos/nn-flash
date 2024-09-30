@@ -7,7 +7,12 @@ class NeuralNetClassifier(tf.keras.Model):
         self.hidden_units = hidden_units
         self.activation = activation
         self.hiddens = [
-            tf.keras.layers.Dense(units, activation=self.activation, name=f"dense{i+1}")
+            tf.keras.layers.Dense(
+                units,
+                activation=self.activation,
+                kernel_initializer=tf.keras.initializers.HeUniform,
+                name=f"dense{i+1}",
+            )
             for i, units in enumerate(self.hidden_units)
         ]
         self.outputs = tf.keras.layers.Dense(3, name="output")

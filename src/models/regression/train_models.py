@@ -24,6 +24,7 @@ class RegressionTraining:
 
     def __init__(self, samples_per_composition: int):
         self.samples_per_composition = samples_per_composition
+        self.k_fold = 10
         self.logger = logging.getLogger(__name__)
         self.results_folder = os.path.join(
             "data",
@@ -265,6 +266,7 @@ class RegressionTraining:
     def train_mse_loss_with_soft_constraint(self, log=False):
         """...
 
+
         Results format:
 
         results = {
@@ -331,6 +333,7 @@ class RegressionTraining:
                 loss_func = MeanSquaredErrorWithSoftConstraint(lambda_=lambda_)
 
                 train_losses, valid_losses = [], []
+                best_valid_loss = 1e3
                 for epoch in range(epochs):
                     for x_batch_train, y_batch_train in train_dataset:
 
@@ -356,6 +359,11 @@ class RegressionTraining:
                     train_losses.append(float(train_loss))
                     valid_losses.append(float(valid_loss))
 
+                    if valid_loss < best_valid_loss:
+                        tf.keras.models.save_model(
+                            model,
+                        )
+
                     if log and (epoch + 1) % 100 == 0:
                         self.logger.info(train_log.format(epoch + 1, float(train_loss), float(valid_loss)))
 
@@ -379,33 +387,73 @@ class RegressionTraining:
             results["outputs"].append(r)
             self.logger.info(f"training model: {i+1}/{len(self.hyperparameters)}, elapsed time: {end - start}")
 
-            self.save_pickle(os.path.join(results_folder, "train_results.pickle"), results)
+        self.save_pickle(results_folder, results)
 
     def plot_mse_loss_with_soft_constraint(self):
-        xy = np.zeros((len(self.hyperparameters), 2))
+        results_folder = os.path.join(
+            "data",
+            "models",
+            "regression_with_constrained_loss",
+            "saved_results",
+            f"{self.samples_per_composition:03d}points",
+            "train_results.pickle",
+        )
+        results = self.load_pickle(results_folder)
 
-        hparams = pd.DataFrame(self.hyperparameters).sort_values([2, 0, 1])
-        sorted_idx = pd.DataFrame(self.hyperparameters).sort_values([2, 0, 1]).index
-
-        losses = np.array([r["valid_losses"][-1] for r in results])
+        hparams = pd.DataFrame.from_records(
+            [
+                {
+                    "hidden_layers": len(model["hparams"]["hidden_units"]),
+                    "hidden_units": model["hparams"]["hidden_units"][0],
+                    "lambda": model["hparams"]["lambda"],
+                }
+                for model in results["outputs"]
+            ]
+        ).astype({"hidden_units": "int16", "hidden_layers": "int16", "lambda": "float64"})
+        hparams = hparams[hparams["lambda"] < 0.1].sort_values([2, 0, 1], axis=1)
+        sorted_idx = hparams.index
+        xy = np.array([[[f["summ_xi_hat"], f["summ_yi_hat"]] for f in m["folds"]] for m in results["outputs"]])
+        losses = np.array([[f["valid_losses"][-1] for f in m["folds"]] for m in results["outputs"]])
+        mean_losses = np.mean(losses, axis=1)
+        std_losses = np.std(losses, axis=1) / np.sqrt(self.k_fold - 1)
 
         f, axs = plt.subplots(2, 1, figsize=(12, 5), sharex=True)
-        axs[0].errorbar(np.arange(len(hparams)), xy[sorted_idx, 0], fmt="o-", label="$\sum \widehat{x_i}$")
-        axs[0].errorbar(np.arange(len(hparams)), xy[sorted_idx, 1], fmt="o-", label="$\sum \widehat{y_i}$")
-        axs[0].axhline(1.0, ls="--")
-        axs[0].axvspan(11.5, 23.5, alpha=0.2)
+        axs[0].errorbar(
+            x=np.arange(len(hparams)),
+            y=np.mean(xy[sorted_idx, :, 0], axis=1),
+            yerr=np.std(xy[sorted_idx, :, 0], axis=1) / np.sqrt(self.k_fold - 1),
+            fmt="-",
+            label="$\sum \widehat{x_i}$",
+        )
+        axs[0].errorbar(
+            x=np.arange(len(hparams)),
+            y=np.mean(xy[sorted_idx, :, 1], axis=1),
+            yerr=np.std(xy[sorted_idx, :, 1], axis=1) / np.sqrt(self.k_fold - 1),
+            fmt="-",
+            label="$\sum \widehat{y_i}$",
+        )
+        axs[1].errorbar(
+            x=np.arange(len(hparams)),
+            y=mean_losses[sorted_idx],
+            yerr=std_losses[sorted_idx],
+            fmt="-",
+            label="Erro Quadrático Médio",
+        )
+        axs[1].set_xticks(
+            np.arange(len(hparams)),
+            [tuple(d.values()) for d in hparams.to_dict(orient="records")],
+            rotation="vertical",
+        )
 
-        # axs[0].set_ylim(bottom=0.15)
-        axs[0].text(-1.2, 0.94, "$\lambda = 0.0$", fontsize=14)
-        axs[0].text(11.8, 0.94, "$\lambda = 0.1$", fontsize=14)
-        axs[0].text(23.8, 0.94, "$\lambda = 100.0$", fontsize=14)
-        # axs[0].set_xticks(np.arange(len(hyperparameters)), hyperparameters, rotation="vertical")
         axs[0].legend()
+        axs[0].axhline(1.0, ls="--")
+        axs[1].legend(loc="lower right")
 
-        axs[1].plot(losses[sorted_idx], "o-", label="loss")
-        axs[1].set_xticks(np.arange(len(hparams)), hparams.to_records(index=False), rotation="vertical")
-        axs[1].axvspan(11.5, 23.5, alpha=0.2)
-        axs[1].legend()
-
+        for i in range(int(np.ceil(9 / 2))):
+            axs[0].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
+            axs[1].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
         plt.subplots_adjust(hspace=0.1)
-        f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)
+        # f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)
+
+        plt.show()
+        return results

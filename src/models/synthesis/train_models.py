@@ -108,8 +108,6 @@ class SynthesisTraining:
                         }
                     )
 
-                    # neg_critic_loss = -np.array(callbacks[0].history["critic_loss"])
-                    # batches = neg_critic_loss.shape[0]
                 pbar.update()
 
             pbar.close()
@@ -198,7 +196,7 @@ class SynthesisTraining:
                     self.save_pickle(os.path.join(fold_folder, "alpha.pickle"), alpha)
 
     def load_training_models(self):
-        """Load regression models training results"""
+        """Load synthesis models training results"""
         n_folds = 10
         results = {"samples_per_composition": self.samples_per_composition}
 

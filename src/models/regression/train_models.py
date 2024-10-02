@@ -363,6 +363,7 @@ class RegressionTraining:
                             results_folder,
                             f"best_model_model_id={i}_fold={j}_epoch={epoch}.keras",
                         )
+                        best_epoch = epoch
                         best_model = tf.keras.models.clone_model(model)
                         best_model.set_weights(model.get_weights())
                         best_valid_loss = float(valid_loss)
@@ -375,7 +376,7 @@ class RegressionTraining:
                 y_pred = denorm(y_hat_valid, min_vals, max_vals)
                 xi_pred, yi_pred = self.convert_K_to_XY(y_pred, x_valid)
 
-                self.logger.info(f"hparams: {hparams}, fold: {j+1}, valid loss: {valid_losses[-1]}")
+                self.logger.info(f"hparams: {hparams}, fold: {j+1}, best valid loss: {best_valid_loss} [epoch {best_epoch}]")
 
                 r["folds"].append(
                     {

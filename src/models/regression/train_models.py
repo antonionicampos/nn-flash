@@ -376,7 +376,7 @@ class RegressionTraining:
                 y_pred = denorm(y_hat_valid, min_vals, max_vals)
                 xi_pred, yi_pred = self.convert_K_to_XY(y_pred, x_valid)
 
-                self.logger.info(f"hparams: {hparams}, fold: {j+1}, best valid loss: {best_valid_loss} [epoch {best_epoch}]")
+                self.logger.info(f"{hparams}, fold: {j+1}, best valid loss: {round(best_valid_loss, 6)} [epoch {best_epoch}]")
 
                 r["folds"].append(
                     {

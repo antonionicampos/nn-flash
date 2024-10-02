@@ -363,14 +363,15 @@ class RegressionTraining:
                             results_folder,
                             f"best_model_model_id={i}_fold={j}_epoch={epoch}.keras",
                         )
-                        tf.keras.models.save_model(model, best_model_path)
+                        best_model = tf.keras.models.clone_model(model)
+                        best_model.set_weights(model.get_weights())
                         best_valid_loss = float(valid_loss)
 
                     if log and (epoch + 1) % 100 == 0:
                         self.logger.info(train_log.format(epoch + 1, float(train_loss), float(valid_loss)))
 
-                final_model = tf.keras.models.load_model(best_model_path)
-                y_hat_valid = final_model(x_valid)
+                tf.keras.models.save_model(best_model, best_model_path)
+                y_hat_valid = best_model(x_valid)
                 y_pred = denorm(y_hat_valid, min_vals, max_vals)
                 xi_pred, yi_pred = self.convert_K_to_XY(y_pred, x_valid)
 

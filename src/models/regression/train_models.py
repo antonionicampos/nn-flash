@@ -317,7 +317,6 @@ class RegressionTraining:
             train_log = "Epoch: {:04d}, train loss: {:.5f}, valid loss: {:.5f}"
 
             for j, (train, valid, minmax_vals) in enumerate(zip(datasets["train"], datasets["valid"], minmax)):
-                best_model_path = os.path.join(results_folder, f"best_model_model_id={i}_fold={j}.keras")
                 min_vals, max_vals = minmax_vals
                 min_vals = tf.convert_to_tensor(min_vals, dtype=tf.float32)
                 max_vals = tf.convert_to_tensor(max_vals, dtype=tf.float32)
@@ -360,6 +359,10 @@ class RegressionTraining:
                     valid_losses.append(float(valid_loss))
 
                     if float(valid_loss) < best_valid_loss:
+                        best_model_path = os.path.join(
+                            results_folder,
+                            f"best_model_model_id={i}_fold={j}_epoch={epoch}.keras",
+                        )
                         tf.keras.models.save_model(model, best_model_path)
                         best_valid_loss = float(valid_loss)
 
@@ -388,10 +391,10 @@ class RegressionTraining:
             results["outputs"].append(r)
             self.logger.info(f"training model: {i+1}/{len(self.hyperparameters)}, elapsed time: {end - start}")
 
-        self.save_pickle(results_folder, results)
+        self.save_pickle(os.path.join(results_folder, "train_results.pickle"), results)
 
     def plot_mse_loss_with_soft_constraint(self):
-        results_folder = os.path.join(
+        results_filename = os.path.join(
             "data",
             "models",
             "regression_with_constrained_loss",
@@ -399,7 +402,9 @@ class RegressionTraining:
             f"{self.samples_per_composition:03d}points",
             "train_results.pickle",
         )
-        results = self.load_pickle(results_folder)
+        results = self.load_pickle(results_filename)
+        for fold in results["outputs"][0]["folds"]:
+            print(fold.keys())
 
         hparams = pd.DataFrame.from_records(
             [
@@ -414,7 +419,7 @@ class RegressionTraining:
         hparams = hparams[hparams["lambda"] < 0.1].sort_values([2, 0, 1], axis=1)
         sorted_idx = hparams.index
         xy = np.array([[[f["summ_xi_hat"], f["summ_yi_hat"]] for f in m["folds"]] for m in results["outputs"]])
-        losses = np.array([[f["valid_losses"][-1] for f in m["folds"]] for m in results["outputs"]])
+        losses = np.array([[f["best_valid_loss"] for f in m["folds"]] for m in results["outputs"]])
         mean_losses = np.mean(losses, axis=1)
         std_losses = np.std(losses, axis=1) / np.sqrt(self.k_fold - 1)
 
@@ -454,5 +459,6 @@ class RegressionTraining:
             axs[0].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
             axs[1].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
         plt.subplots_adjust(hspace=0.1)
+        f.tight_layout()
         f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)
         return results

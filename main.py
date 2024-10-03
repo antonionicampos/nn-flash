@@ -17,6 +17,7 @@ from src.models.classification.train_models import ClassificationTraining
 from src.models.regression.evaluate_models import RegressionAnalysis
 from src.models.regression.train_models import RegressionTraining
 from src.models.synthesis.train_models import SynthesisTraining
+from src.models.synthesis.evaluate_models import SynthesisAnalysis
 from src.visualization.classification import ClassificationViz
 from src.visualization.regression import RegressionViz
 
@@ -136,7 +137,7 @@ if __name__ == "__main__":
 
         elif args.task == "synthesis":
             logger.info("Starting synthesis models training")
-            synthesis_training = SynthesisTraining(samples_per_composition=samples_per_composition)
+            synthesis_training = SynthesisTraining()
             synthesis_training.run()
 
     if args.analysis:
@@ -148,6 +149,9 @@ if __name__ == "__main__":
         elif args.task == "regression":
             regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
             regression_analysis.run()
+        elif args.task == "synthesis":
+            synthesis_analysis = SynthesisAnalysis()
+            synthesis_analysis.run()
 
     if args.viz:
         logger.info("Starting create visualization")

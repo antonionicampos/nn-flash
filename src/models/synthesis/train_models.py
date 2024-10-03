@@ -8,7 +8,6 @@ import tensorflow as tf
 from datetime import datetime
 from dirichlet import mle
 from glob import glob
-from scipy.stats import dirichlet
 from src.data.handlers import DataLoader
 from src.models.synthesis.experiments import hparams
 from src.models.synthesis.wgan import WGANGP, MLPCritic, MLPGenerator, critic_loss, generator_loss, CustomHistory
@@ -18,24 +17,17 @@ from tqdm import tqdm
 
 class SynthesisTraining:
 
-    def __init__(self, samples_per_composition):
-        self.samples_per_composition = samples_per_composition
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.n_folds = 5
-        self.results_folder = os.path.join(
-            "data",
-            "models",
-            "synthesis",
-            "saved_models",
-            f"{samples_per_composition:03d}points",
-        )
+        self.results_folder = os.path.join("data", "models", "synthesis", "saved_models")
 
     def run(self):
         data_loader = DataLoader()
         cv_data, _ = data_loader.load_cross_validation_datasets(problem="synthesis")
         train_data = cv_data["train"]
 
-        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        results = {"outputs": []}
         training_start = datetime.now()
         for hp in load_model_hparams(hparams):
             model_name = hp["model_name"]
@@ -141,7 +133,6 @@ class SynthesisTraining:
         results : dict
             Model training results structure. Format below:
             {
-                "samples_per_composition": int,
                 "outputs": [
                     {
                         "model_id": int,
@@ -201,7 +192,6 @@ class SynthesisTraining:
         results : dict
             Model training results structure. Format below:
             {
-                "samples_per_composition": int,
                 "outputs": [
                     {
                         "model_id": int,
@@ -218,7 +208,7 @@ class SynthesisTraining:
                 ]
             }
         """
-        results = {"samples_per_composition": self.samples_per_composition}
+        results = {}
 
         model_results = []
         for folder in glob(os.path.join(self.results_folder, "*")):
@@ -227,13 +217,13 @@ class SynthesisTraining:
 
             if model_obj["model_type"] == "wgan":
                 for fold in np.arange(self.n_folds):
-                    critic = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "critic.keras"))
+                    # critic = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "critic.keras"))
                     generator = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "generator.keras"))
                     neg_critic_loss = self.load_pickle(os.path.join(folder, f"Fold{fold+1}", "neg_critic_loss.pickle"))
                     folds.append(
                         {
                             "fold": fold + 1,
-                            "critic": critic,
+                            # "critic": critic,
                             "generator": generator,
                             "neg_critic_loss": neg_critic_loss,
                         }

@@ -49,7 +49,9 @@ def load_model_hparams(hparameters):
                 nn_hparams += [{keys[i]: params[i] for i in range(len(params))} for params in list(product(*values))]
                 models_hparams += [
                     {
-                        "model_name": f"Rede Neural #{i+1}",
+                        "model_name": (
+                            f"Rede Neural #{i+1}" if hp["model_type"] == "neural_network" else f"WGAN #{i+1}"
+                        ),
                         "model_type": hp["model_type"],
                         "params": {**nn_hp},
                         "opt": hp["opt"],

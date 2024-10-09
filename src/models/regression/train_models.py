@@ -405,9 +405,6 @@ class RegressionTraining:
             "train_results.pickle",
         )
         results = self.load_pickle(results_filename)
-        for fold in results["outputs"][0]["folds"]:
-            print(fold.keys())
-
         hparams = pd.DataFrame.from_records(
             [
                 {
@@ -431,6 +428,7 @@ class RegressionTraining:
             y=np.mean(xy[sorted_idx, :, 0], axis=1),
             yerr=np.std(xy[sorted_idx, :, 0], axis=1) / np.sqrt(self.k_fold - 1),
             fmt="-",
+            capsize=3,
             label="$\sum \widehat{x_i}$",
         )
         axs[0].errorbar(
@@ -438,12 +436,14 @@ class RegressionTraining:
             y=np.mean(xy[sorted_idx, :, 1], axis=1),
             yerr=np.std(xy[sorted_idx, :, 1], axis=1) / np.sqrt(self.k_fold - 1),
             fmt="-",
+            capsize=3,
             label="$\sum \widehat{y_i}$",
         )
         axs[1].errorbar(
             x=np.arange(len(hparams)),
             y=mean_losses[sorted_idx],
             yerr=std_losses[sorted_idx],
+            capsize=3,
             fmt="-",
             label="Erro Quadrático Médio",
         )
@@ -455,7 +455,9 @@ class RegressionTraining:
 
         axs[0].legend()
         axs[0].axhline(1.0, ls="--")
+        axs[0].grid(True)
         axs[1].legend(loc="lower right")
+        axs[1].grid(True)
 
         for i in range(int(np.ceil(9 / 2))):
             axs[0].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)

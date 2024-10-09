@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import os
 import tensorflow as tf
@@ -11,6 +12,7 @@ from src.models.synthesis.train_models import SynthesisTraining
 
 class SynthesisAnalysis:
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.results_folder = os.path.join("data", "models", "synthesis", "saved_performance_indices")
 
         if not os.path.isdir(self.results_folder):
@@ -32,13 +34,15 @@ class SynthesisAnalysis:
 
         # Initialize performance indices variables
         self.kldiv = np.zeros((self.num_folds, self.num_models))
+        self.wasserstein = np.zeros((self.num_folds, self.num_models))
 
     def run(self):
         for fold in range(self.num_folds):
             data = self.valid_datasets[fold]["features"].values
             size = data.shape[0]
 
-            for model in self.results["outputs"]:
+            self.logger.info(f"Wasserstein distance between real and synthetic samples on fold {fold}")
+            for i, model in enumerate(self.results["outputs"]):
                 model_fold = model["folds"][fold]
 
                 if model["model_type"] == "dirichlet":
@@ -51,6 +55,8 @@ class SynthesisAnalysis:
                     noise = tf.random.normal([size, latent_dim])
                     gen_data = generator(noise, training=False)
 
+                self.wasserstein[fold, i] = stats.wasserstein_distance_nd(data, gen_data)
+
                 data = np.r_[data, gen_data]
 
             # Reduce dimensions using UMAP algorithm
@@ -59,8 +65,9 @@ class SynthesisAnalysis:
             ground_truth_data = reduced_datasets.pop(0)
 
             # Obtain 2D histogram for datasets
-            H_truth, xedges, yedges, xdelta, ydelta = self.normalized_histogram(ground_truth_data, bins=self.bins)
+            H_truth, xedges, yedges, _, _ = self.normalized_histogram(ground_truth_data, bins=self.bins)
 
+            self.logger.info(f"KL Divergence between real and synthetic samples on fold {fold}")
             for i, data in enumerate(reduced_datasets):
                 H_model, _, _, _, _ = self.normalized_histogram(data, bins=[xedges, yedges])
                 dkl = self.kl_divergence(H_truth, H_model).sum()
@@ -85,7 +92,7 @@ class SynthesisAnalysis:
         return rel_entr(p_mod, q_mod)
 
     def get_performance_indices(self):
-        return {"kl_divergence": self.kldiv}
+        return {"kl_divergence": self.kldiv, "wasserstein_distance": self.wasserstein}
 
     def __save_performance_indices(self):
         np.savez(os.path.join(self.results_folder, "indices.npz"), **self.get_performance_indices())

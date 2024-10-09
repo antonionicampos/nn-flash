@@ -160,5 +160,13 @@ if __name__ == "__main__":
             classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
             classification_viz.create()
         elif args.task == "regression":
+            logger.info("Creating regression visualizations")
+            regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
             regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
-            regression_viz.create()
+
+            if args.regression_loss == "mse":
+                logger.info("Creating regression models with default loss function visualizations")
+                regression_viz.create()
+            elif args.regression_loss == "mse_with_constraint":
+                logger.info("Creating regression models with constrained loss function visualizations")
+                regression_training.plot_mse_loss_with_soft_constraint()

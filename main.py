@@ -20,6 +20,7 @@ from src.models.synthesis.train_models import SynthesisTraining
 from src.models.synthesis.evaluate_models import SynthesisAnalysis
 from src.visualization.classification import ClassificationViz
 from src.visualization.regression import RegressionViz
+from src.visualization.synthesis import SynthesisViz
 
 
 parser = argparse.ArgumentParser(
@@ -157,6 +158,7 @@ if __name__ == "__main__":
         logger.info("Starting create visualization")
 
         if args.task == "classification":
+            logger.info("Creating classification visualizations")
             classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
             classification_viz.create()
         elif args.task == "regression":
@@ -170,3 +172,8 @@ if __name__ == "__main__":
             elif args.regression_loss == "mse_with_constraint":
                 logger.info("Creating regression models with constrained loss function visualizations")
                 regression_training.plot_mse_loss_with_soft_constraint()
+
+        elif args.task == "synthesis":
+            logger.info("Creating synthesis visualizations")
+            synthesis_viz = SynthesisViz()
+            synthesis_viz.create()

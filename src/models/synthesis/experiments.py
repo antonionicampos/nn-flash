@@ -6,10 +6,10 @@ hparams = [
     {
         "model_type": "wgan",
         "params": {
-            "hidden_layers": [2, 3, 4, 5, 6],
-            "hidden_units": [64, 128, 256, 512],
+            "hidden_layers": [2, 3, 4],
+            "hidden_units": [64, 128, 256],
             "activation": ["relu"],
-            "latent_dim": [8, 16, 32],
+            "latent_dim": [8, 16],
         },
         "opt": {
             "lr": 0.0001,
@@ -17,7 +17,7 @@ hparams = [
             "beta_2": 0.9,
             "lambda": 10.0,
             "n_critic": 5,
-            "epochs": 3000,
+            "epochs": 1e4,
             "batch_size": 32,
         },
     },

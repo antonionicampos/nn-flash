@@ -14,6 +14,7 @@ from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.utils import binary_classification
 from src.utils import create_fluid
 from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX
+from src.visualization.styles.formatting import errorbar_kwargs
 from typing import List, Tuple
 
 plt.style.use("seaborn-v0_8-paper")
@@ -129,8 +130,7 @@ class ClassificationViz:
 
             y = self.indices[name].mean(axis=0) * 100
             y_err = (self.indices[name].std(axis=0) / np.sqrt(self.k_folds - 1)) * 100
-            kwargs = {"c": "C0", "fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
-            ax.errorbar(x, y, y_err, label=name.replace("_", " "), **kwargs)
+            ax.errorbar(x, y, y_err, label=name.replace("_", " "), **errorbar_kwargs)
             ax.yaxis.grid()
             ax.set_xticks(x, labels, rotation=90, ha="center")
             ax.legend()

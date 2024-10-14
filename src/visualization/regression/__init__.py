@@ -11,7 +11,8 @@ from src.data.handlers import DataLoader
 from src.models.regression.train_models import RegressionTraining
 from src.models.regression.evaluate_models import RegressionAnalysis
 from src.utils import create_fluid
-from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX, FEATURES_NAMES, REGRESSION_TARGET_NAMES
+from src.utils.constants import P_MIN_MAX, T_MIN_MAX, FEATURES_NAMES, REGRESSION_TARGET_NAMES
+from src.visualization.styles.formatting import errorbar_kwargs
 from typing import List, Tuple
 
 plt.style.use("seaborn-v0_8-paper")
@@ -86,39 +87,18 @@ class RegressionViz:
         labels = [hp["model_name"].replace("#", "\#") for hp in outputs]
         x = np.array([i + 1 for i in np.arange(len(outputs))])
 
-        errorbar_kwargs = {"fmt": "_", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
         if by_model:
             f1, axs1 = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
-            f2, axs2 = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
             for i, name in enumerate(indices_names):
                 ax1 = axs1[i] if len(indices_names) > 1 else axs1
                 y = self.indices[name].mean(axis=(0, 2))
                 y_err = self.indices[name].mean(axis=2).std(axis=0) / np.sqrt(self.k_folds - 1)
                 ax1.errorbar(x, y, y_err, c=f"C{i}", label=name, **errorbar_kwargs)
-                ax1.yaxis.grid()
+                ax1.grid()
                 ax1.set_xticks(x, labels, rotation=90, ha="center")
                 ax1.legend()
-
-                ax2 = axs2[i] if len(indices_names) > 1 else axs2
-                y = self.indices[name].mean(axis=2)
-                ax2.boxplot(
-                    y,
-                    patch_artist=True,
-                    showmeans=False,
-                    flierprops={"markerfacecolor": "C0", "markersize": 4, "markeredgecolor": "none"},
-                    medianprops={"color": "white", "linewidth": 0.5},
-                    boxprops={"facecolor": "C0", "edgecolor": "white", "linewidth": 0.5},
-                    whiskerprops={"color": "C0", "linewidth": 1.5},
-                    capprops={"color": "C0", "linewidth": 1.5},
-                )
-                ax2.yaxis.grid()
-                ax2.set_xticks(x, labels, rotation=90, ha="center")
-                ax2.legend()
             f1.tight_layout()
             f1.savefig(os.path.join(self.viz_folder, "errorbar_plot_by_model.png"), dpi=DPI)
-
-            f2.tight_layout()
-            f2.savefig(os.path.join(self.viz_folder, "boxplot_by_model.png"), dpi=DPI)
         else:
             indices_names = ["mean_absolute_error"]
             x = np.array([i + 1 for i in np.arange(len(REGRESSION_TARGET_NAMES))])

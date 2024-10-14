@@ -17,7 +17,7 @@ hparams = [
             "beta_2": 0.9,
             "lambda": 10.0,
             "n_critic": 5,
-            "epochs": 1e4,
+            "epochs": int(1e4),
             "batch_size": 32,
         },
     },

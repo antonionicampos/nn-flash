@@ -55,7 +55,7 @@ class SynthesisViz:
         for name in self.indices.keys():
             index = self.indices[name]
             mean, std = index.mean(axis=0), index.std(axis=0) / np.sqrt(self.k_folds - 1)
-            data[name] = [rf"{mu:.4f} \textpm {sigma:.4f}" for mu, sigma in zip(mean, std)]
+            data[name] = [rf"{mu:.3f} \textpm {sigma:.3f}" for mu, sigma in zip(mean, std)]
         table = pd.DataFrame(data, index=model_names)
         table.columns = [" ".join([s.capitalize() for s in col.split("_")]) for col in table.columns]
 

@@ -46,7 +46,7 @@ class SynthesisViz:
             if model["model_type"] == "wgan"
         ]
         outputs.insert(0, {"model_id": self.results["outputs"][0]["model_id"], "model_name": "Dirichlet"})
-        table = pd.DataFrame.from_records(outputs).fillna("-")
+        table = pd.DataFrame.from_records(outputs, index="model_id").fillna("-")
         table.to_latex(os.path.join(self.viz_folder, "models_table.tex"), index=False)
 
     def performance_indices_table(self):

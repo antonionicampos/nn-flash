@@ -85,6 +85,12 @@ class ClassificationViz:
             table.to_latex(os.path.join(self.viz_folder, f"{k}_table.tex"), index=False)
 
     def performance_indices_table(self):
+        kernel_params = {"linear": 0, "rbf": 1, "poly": 3, "sigmoid": 2}
+        nn_models = [o["folds"][0]["model"] for o in self.results["outputs"] if o["model_type"] == "neural_network"]
+        svm_models = [o["folds"][0]["model"] for o in self.results["outputs"] if o["model_type"] == "svm"]
+        num_params = [np.sum(m.n_support_) + kernel_params[m.get_params()["kernel"]] + 1 for m in svm_models]
+        num_params += [np.sum([np.prod(var.shape.as_list()) for var in m.trainable_variables]) for m in nn_models]
+
         model_names = [res["model_name"].replace("#", "\#") for res in self.results["outputs"]]
         data = {}
         for name in self.indices.keys():
@@ -101,16 +107,20 @@ class ClassificationViz:
                     data[f"{name}_{label.lower()}"] = [
                         rf"{mu:.2f} \textpm {sigma:.2f}" for mu, sigma in zip(mean[:, i], std[:, i])
                     ]
+        data["num_params"] = num_params
 
         table = pd.DataFrame(data, index=model_names)
-        table.columns = [f"{' '.join([s.capitalize() for s in col.split('_')])} [\%]" for col in table.columns]
+        table.columns = [f"{col} [\%]" if col != "num_params" else col for col in table.columns]
 
         def highlight(s, props=""):
-            mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
-            if s.name == "cross_entropy":
-                return np.where(mu == np.min(mu.values), props, "")
+            if s.name == "num_params":
+                return np.where(s == np.min(s.values), props, "")
             else:
-                return np.where(mu == np.max(mu.values), props, "")
+                mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
+                if s.name == "cross_entropy":
+                    return np.where(mu == np.min(mu.values), props, "")
+                else:
+                    return np.where(mu == np.max(mu.values), props, "")
 
         table = table.style.apply(highlight, props="font-weight:bold;", axis=0)
         table.to_latex(

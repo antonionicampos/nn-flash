@@ -60,19 +60,25 @@ class RegressionViz:
         table.to_latex(os.path.join(self.viz_folder, "models_table.tex"), index=False)
 
     def performance_indices_table(self):
+        nn_models = [o["folds"][0]["model"] for o in self.results["outputs"] if o["model_type"] == "neural_network"]
+        num_params = [np.sum([np.prod(var.shape.as_list()) for var in m.trainable_variables]) for m in nn_models]
+
         model_names = [res["model_name"].replace("#", "\#") for res in self.results["outputs"]]
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
             mean, std = index.mean(axis=(0, 2)), index.mean(axis=2).std(axis=0) / np.sqrt(self.k_folds - 1)
             data[name.replace("_", "\_")] = [rf"{mu:.2f} \textpm {sigma:.2f}" for mu, sigma in zip(mean, std)]
+        data["num_params"] = num_params
 
         table = pd.DataFrame(data, index=model_names)
-        table.columns = [" ".join([s.capitalize() for s in col.split("_")]) for col in table.columns]
 
         def highlight(s, props=""):
-            mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
-            return np.where(mu == np.min(mu.values), props, "")
+            if s.name == "num_params":
+                return np.where(s == np.min(s.values), props, "")
+            else:
+                mu = s.apply(lambda row: float(row.split(r" \textpm ")[0]))
+                return np.where(mu == np.min(mu.values), props, "")
 
         table = table.style.apply(highlight, props="font-weight:bold;", axis=0)
         table.to_latex(
@@ -90,10 +96,11 @@ class RegressionViz:
         if by_model:
             f1, axs1 = plt.subplots(len(indices_names), 1, figsize=(6, 5 * len(indices_names)), sharex=True)
             for i, name in enumerate(indices_names):
+                label = "Erro Médio Absoluto" if name == "mean_absolute_error" else "Erro Médio Quadrático"
                 ax1 = axs1[i] if len(indices_names) > 1 else axs1
                 y = self.indices[name].mean(axis=(0, 2))
                 y_err = self.indices[name].mean(axis=2).std(axis=0) / np.sqrt(self.k_folds - 1)
-                ax1.errorbar(x, y, y_err, c=f"C{i}", label=name, **errorbar_kwargs)
+                ax1.errorbar(x, y, y_err, c=f"C{i}", label=label, **errorbar_kwargs)
                 ax1.grid()
                 ax1.set_xticks(x, labels, rotation=90, ha="center")
                 ax1.legend()
@@ -107,12 +114,13 @@ class RegressionViz:
                 model_id = output["model_id"]
                 f, axs = plt.subplots(len(indices_names), 1, figsize=(6, 4 * len(indices_names)), sharex=True)
                 for i, name in enumerate(indices_names):
-                    kwargs = {"label": name, **errorbar_kwargs}
+                    label = "Erro Médio Absoluto" if name == "mean_absolute_error" else "Erro Médio Quadrático"
+                    kwargs = {"label": label, **errorbar_kwargs}
                     ax = axs[i] if len(indices_names) > 1 else axs
                     y = self.indices[name].mean(axis=0)[j, :]
                     y_err = self.indices[name].std(axis=0)[j, :] / np.sqrt(self.k_folds - 1)
                     ax.errorbar(x, y, y_err, c=f"C{i}", **kwargs)
-                    ax.yaxis.grid()
+                    ax.grid()
 
                     def fix_ticks1(name):
                         var, component = name.split("_")

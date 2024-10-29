@@ -26,7 +26,7 @@ class DataGen:
         self.P_bounds = [10.0, 450.0]
         self.T_bounds = [150.0, 1125.0]
 
-    def classification_sampling(self, fold: int, model_name: str = "WGAN #9"):
+    def classification_sampling(self, model_name: str = "WGAN #9"):
         samples = []
         num_samples = self.dataset_size * 10656
 
@@ -109,7 +109,7 @@ class DataGen:
 
         return output
 
-    def regression_sampling(self, fold: int, model_name: str = "WGAN #9"):
+    def regression_sampling(self, model_name: str = "WGAN #9"):
         samples = []
         num_samples = self.dataset_size * 10656
 
@@ -117,7 +117,8 @@ class DataGen:
         results = st.load_training_models()
         model_results = [model for model in results["outputs"] if model["model_name"] == model_name][0]
         latent_dim = model_results["params"]["latent_dim"]
-        models = [f["generator"] for f in model_results["folds"]]
+        model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
+        generator = tf.keras.models.load_model(os.path.join(model_folder, "final_generator.keras"))
 
         composition_samples = 0
 
@@ -126,7 +127,7 @@ class DataGen:
             T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
 
             x = tf.random.normal([1, latent_dim])
-            composition_array = models[fold](x).numpy().flatten()
+            composition_array = generator(x).numpy().flatten()
             composition = {name: 100 * value for value, name in zip(composition_array, FEATURES_NAMES[:-2])}
 
             fluid = create_fluid(composition)
@@ -144,15 +145,18 @@ class DataGen:
                     composition.update({"T": T_sample, "P": P_sample, **outputs})
                     samples.append(composition)
                     composition_samples += 1
+                    clear_output()
+                    print(f"Samples created: {composition_samples}")
 
         return pd.DataFrame.from_records(samples)
 
     def create_datasets(self, model: str):
         base_folder = os.path.join("data", "processed", "synthetic")
+        data_path = os.path.join(base_folder, model, f"{self.dataset_size}to1")
 
         for fold in range(self.k_folds):
             if model == "classification":
-                data_path = os.path.join(base_folder, model, f"{self.dataset_size}to1")
                 dataset = self.classification_sampling()
-
                 dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"))
+            elif model == "regression":
+                pass

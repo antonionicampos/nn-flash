@@ -34,7 +34,8 @@ class DataGen:
         results = st.load_training_models()
         model_results = [model for model in results["outputs"] if model["model_name"] == model_name][0]
         latent_dim = model_results["params"]["latent_dim"]
-        models = [f["generator"] for f in model_results["folds"]]
+        model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
+        generator = tf.keras.models.load_model(os.path.join(model_folder, "final_generator.keras"))
 
         # P_min = 10 bara   T_min = 150 K
         # P_max = 450 bara  T_max = 1125 K
@@ -45,7 +46,7 @@ class DataGen:
             T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
 
             x = tf.random.normal([1, latent_dim])
-            composition_array = models[fold](x).numpy().flatten()
+            composition_array = generator(x).numpy().flatten()
             composition = {name: 100 * value for value, name in zip(composition_array, FEATURES_NAMES[:-2])}
 
             fluid = create_fluid(composition)

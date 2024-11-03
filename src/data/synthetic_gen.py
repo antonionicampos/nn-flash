@@ -155,6 +155,8 @@ class DataGen:
         data_path = os.path.join(base_folder, model, f"{self.dataset_size}to1")
 
         for fold in range(self.k_folds):
+            self.logger.info(f"Creating fold #{fold+1} dataset")
+
             if model == "classification":
                 dataset = self.classification_sampling()
                 dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"))

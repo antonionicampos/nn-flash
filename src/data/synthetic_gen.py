@@ -58,6 +58,7 @@ class DataGen:
         # P_max = 450 bara  T_max = 1125 K
         gas_sample, oil_sample, mix_sample = 0, 0, 0
 
+        self.logger.info("Generating gas samples")
         pbar = tqdm(desc="Generating gas samples", total=num_samples // 3)
         x = tf.random.normal([num_samples // 3, latent_dim])
         compositions = generator(x).numpy()
@@ -71,6 +72,7 @@ class DataGen:
                     gas_sample += 1
                     pbar.update()
 
+        self.logger.info("Generating oil samples")
         pbar = tqdm(desc="Generating oil samples", total=num_samples // 3)
         x = tf.random.normal([num_samples // 3, latent_dim])
         compositions = generator(x).numpy()
@@ -85,6 +87,7 @@ class DataGen:
                     pbar.set_description(f"Oil: {oil_sample}")
                     pbar.update()
 
+        self.logger.info("Generating mix samples")
         pbar = tqdm(desc="Generating mix samples", total=num_samples // 3)
         x = tf.random.normal([num_samples // 3, latent_dim])
         compositions = generator(x).numpy()

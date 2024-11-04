@@ -195,8 +195,11 @@ class DataGen:
 class DataLoader:
 
     def __init__(self, problem: str, dataset_size: int = 1):
-        self.base_folder = os.path.join("data", "processed", "synthetic")
-        self.data_path = os.path.join(self.base_folder, problem, f"{dataset_size}to1")
+        synthetic_base_folder = os.path.join("data", "processed", "synthetic")
+        self.synthetic_data_path = os.path.join(synthetic_base_folder, problem, f"{dataset_size}to1")
+
+        base_folder = os.path.join("data", "processed", "experimental")
+        self.data_path = os.path.join(base_folder, problem, "030points")
 
     def load_cross_validation_datasets(self):
         self.train_files = glob.glob(os.path.join(self.data_path, "train_*.csv"))

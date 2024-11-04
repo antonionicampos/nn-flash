@@ -1,3 +1,4 @@
+import glob
 import logging
 import numpy as np
 import os
@@ -174,9 +175,9 @@ class DataGen:
 
         return pd.DataFrame.from_records(samples)
 
-    def create_datasets(self, model: str):
+    def create_datasets(self, problem: str):
         base_folder = os.path.join("data", "processed", "synthetic")
-        data_path = os.path.join(base_folder, model, f"{self.dataset_size}to1")
+        data_path = os.path.join(base_folder, problem, f"{self.dataset_size}to1")
 
         if not os.path.isdir(data_path):
             os.makedirs(data_path)
@@ -184,8 +185,18 @@ class DataGen:
         for fold in range(self.k_folds):
             self.logger.info(f"Creating fold #{fold+1} dataset")
 
-            if model == "classification":
+            if problem == "classification":
                 dataset = self.classification_sampling()
                 dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"), index=False)
-            elif model == "regression":
+            elif problem == "regression":
                 pass
+
+
+class DataLoader:
+
+    def __init__(self, problem: str, dataset_size: int = 1):
+        self.base_folder = os.path.join("data", "processed", "synthetic")
+        self.data_path = os.path.join(self.base_folder, problem, f"{dataset_size}to1")
+
+    def load_cross_validation_datasets(self):
+        self.train_files = glob.glob(os.path.join(self.data_path, "train_*.csv"))

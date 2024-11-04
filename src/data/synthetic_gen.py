@@ -186,6 +186,6 @@ class DataGen:
 
             if model == "classification":
                 dataset = self.classification_sampling()
-                dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"))
+                dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"), index=False)
             elif model == "regression":
                 pass

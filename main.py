@@ -12,6 +12,7 @@ import textwrap
 
 from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
+from src.data.synthetic_gen import DataGen
 from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.train_models import ClassificationTraining
 from src.models.regression.evaluate_models import RegressionAnalysis
@@ -85,6 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--training", default=None, action="store_true", help="Do train step")
     parser.add_argument("-a", "--analysis", default=None, action="store_true", help="Do Analysis Step")
     parser.add_argument("-v", "--viz", default=None, action="store_true", help="Create and save visualizations")
+    parser.add_argument("-g", "--generate", default=None, action="store_true", help="Synthesize new samples")
 
     args = parser.parse_args()
     samples_per_composition = int(args.samples_per_composition)
@@ -177,3 +179,7 @@ if __name__ == "__main__":
             logger.info("Creating synthesis visualizations")
             synthesis_viz = SynthesisViz()
             synthesis_viz.create()
+
+    if args.generate:
+        dg = DataGen(dataset_size=1)
+        dg.create_datasets(model=args.task)

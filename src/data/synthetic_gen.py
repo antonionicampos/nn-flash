@@ -10,6 +10,7 @@ from neqsim.thermo.thermoTools import dataFrame
 from src.models.synthesis.train_models import SynthesisTraining
 from src.utils import create_fluid
 from src.utils.constants import NEQSIM_COMPONENTS, FEATURES_NAMES
+from tqdm import tqdm
 from typing import Any
 
 
@@ -27,12 +28,28 @@ class DataGen:
         self.T_bounds = [150.0, 1125.0]
 
     def classification_sampling(self, model_name: str = "WGAN #9"):
+
+        def generate_sample(compositions, sample):
+            P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
+            T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
+
+            composition = {name: 100 * value for value, name in zip(compositions[sample, :], FEATURES_NAMES[:-2])}
+
+            fluid = create_fluid(composition)
+            fluid.setTemperature(T_sample, "K")
+            fluid.setPressure(P_sample, "bara")
+            TPflash(fluid)
+
+            phases = [p for p in fluid.getPhases() if p]
+            phases_names = [phase.getPhaseTypeName() for phase in phases]
+            return P_sample, T_sample, phases_names, fluid, composition
+
         samples = []
         num_samples = self.dataset_size * 10656
 
         st = SynthesisTraining()
-        results = st.load_training_models()
-        model_results = [model for model in results["outputs"] if model["model_name"] == model_name][0]
+        r = st.load_training_models()
+        model_results = [m for m in r["outputs"] if m["model_name"] == model_name][0]
         latent_dim = model_results["params"]["latent_dim"]
         model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
         generator = tf.keras.models.load_model(os.path.join(model_folder, "final_generator.keras"))
@@ -41,42 +58,46 @@ class DataGen:
         # P_max = 450 bara  T_max = 1125 K
         gas_sample, oil_sample, mix_sample = 0, 0, 0
 
-        while (gas_sample < num_samples // 3) or (oil_sample < num_samples // 3) or (mix_sample < num_samples // 3):
-            P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
-            T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
+        pbar = tqdm(desc="Generating gas samples", total=num_samples // 3)
+        x = tf.random.normal([num_samples // 3, latent_dim])
+        compositions = generator(x).numpy()
+        while gas_sample < num_samples // 3:
+            P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, gas_sample)
 
-            x = tf.random.normal([1, latent_dim])
-            composition_array = generator(x).numpy().flatten()
-            composition = {name: 100 * value for value, name in zip(composition_array, FEATURES_NAMES[:-2])}
+            if fluid.getNumberOfPhases() == 1:
+                if phases_names[0] == "gas":
+                    sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "gas"}
+                    samples.append(sample_dict)
+                    gas_sample += 1
+                    pbar.update()
 
-            fluid = create_fluid(composition)
-
-            fluid.setTemperature(T_sample, "K")
-            fluid.setPressure(P_sample, "bara")
-            TPflash(fluid)
-
-            phases = [p for p in fluid.getPhases() if p]
-            phases_names = [phase.getPhaseTypeName() for phase in phases]
+        pbar = tqdm(desc="Generating oil samples", total=num_samples // 3)
+        x = tf.random.normal([num_samples // 3, latent_dim])
+        compositions = generator(x).numpy()
+        while oil_sample < num_samples // 3:
+            P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, oil_sample)
 
             if fluid.getNumberOfPhases() == 1:
                 if phases_names[0] == "oil":
-                    if oil_sample < num_samples // 3:
-                        sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
-                        samples.append(sample_dict)
-                        oil_sample += 1
-                if phases_names[0] == "gas":
-                    if gas_sample < num_samples // 3:
-                        sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "gas"}
-                        samples.append(sample_dict)
-                        gas_sample += 1
-            elif fluid.getNumberOfPhases() == 2:
+                    sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
+                    samples.append(sample_dict)
+                    oil_sample += 1
+                    pbar.set_description(f"Oil: {oil_sample}")
+                    pbar.update()
+
+        pbar = tqdm(desc="Generating mix samples", total=num_samples // 3)
+        x = tf.random.normal([num_samples // 3, latent_dim])
+        compositions = generator(x).numpy()
+        while mix_sample < num_samples // 3:
+            P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, mix_sample)
+
+            if fluid.getNumberOfPhases() == 2:
                 if mix_sample < num_samples // 3:
                     sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "mix"}
                     samples.append(sample_dict)
                     mix_sample += 1
-
-            clear_output(wait=True)
-            print(f"Gas: {gas_sample}, Oil: {oil_sample}, Mix: {mix_sample}")
+                    pbar.set_description(f"Mix: {mix_sample}")
+                    pbar.update()
 
         return pd.DataFrame.from_records(samples)
 
@@ -153,6 +174,9 @@ class DataGen:
     def create_datasets(self, model: str):
         base_folder = os.path.join("data", "processed", "synthetic")
         data_path = os.path.join(base_folder, model, f"{self.dataset_size}to1")
+
+        if not os.path.isdir(data_path):
+            os.makedirs(data_path)
 
         for fold in range(self.k_folds):
             self.logger.info(f"Creating fold #{fold+1} dataset")

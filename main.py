@@ -86,10 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--training", default=None, action="store_true", help="Do train step")
     parser.add_argument("-a", "--analysis", default=None, action="store_true", help="Do Analysis Step")
     parser.add_argument("-v", "--viz", default=None, action="store_true", help="Create and save visualizations")
-
-    parser.add_argument(
-        "-g", "--generate-data", default=None, action="store_true", help="Create datasets using generative models"
-    )
+    parser.add_argument("-g", "--generate", default=None, action="store_true", help="Synthesize new samples")
 
     args = parser.parse_args()
     samples_per_composition = int(args.samples_per_composition)
@@ -183,13 +180,6 @@ if __name__ == "__main__":
             synthesis_viz = SynthesisViz()
             synthesis_viz.create()
 
-    if args.generate_data:
-        model_name = "WGAN #9"
-        logger.info(f"Starting generate new compositions using {model_name}")
-
+    if args.generate:
         dg = DataGen(dataset_size=1)
-
-        if args.task == "classification":
-            dg.create_datasets(args.task)
-        elif args.task == "regression":
-            pass
+        dg.create_datasets(model=args.task)

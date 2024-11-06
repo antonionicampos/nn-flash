@@ -3,11 +3,13 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import pickle
 import tensorflow as tf
 
 from IPython.display import clear_output
 from neqsim.thermo import TPflash
 from neqsim.thermo.thermoTools import dataFrame
+from scipy.stats import dirichlet
 from src.models.synthesis.train_models import SynthesisTraining
 from src.utils import create_fluid
 from src.utils.constants import (
@@ -35,6 +37,11 @@ class DataGen:
         self.P_bounds = [10.0, 450.0]
         self.T_bounds = [150.0, 1125.0]
 
+    def load_pickle(self, filepath):
+        with open(filepath, "rb") as f:
+            obj = pickle.load(f)
+        return obj
+
     def classification_sampling(self, model_name: str = "WGAN #9"):
 
         def generate_sample(compositions, sample):
@@ -54,22 +61,33 @@ class DataGen:
 
         samples = []
         num_samples = self.dataset_size * 10656
+        model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
 
         st = SynthesisTraining()
         r = st.load_training_models()
-        model_results = [m for m in r["outputs"] if m["model_name"] == model_name][0]
-        latent_dim = model_results["params"]["latent_dim"]
-        model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
-        generator = tf.keras.models.load_model(os.path.join(model_folder, "final_generator.keras"))
+
+        # Load generative model
+        if "WGAN" in model_name:
+            model_results = [m for m in r["outputs"] if m["model_name"] == model_name][0]
+            latent_dim = model_results["params"]["latent_dim"]
+            generator = tf.keras.models.load_model(os.path.join(model_folder, "final_generator.keras"))
+        elif "Dirichlet" in model_name:
+            alpha = self.load_pickle(os.path.join(model_folder, "final_alpha.pickle"))
 
         # P_min = 10 bara   T_min = 150 K
         # P_max = 450 bara  T_max = 1125 K
         gas_sample, oil_sample, mix_sample = 0, 0, 0
-
+        
+        # Generate gas samples #########################################################################################
         self.logger.info("Generating gas samples")
         pbar = tqdm(desc="Generating gas samples", total=num_samples // 3)
-        x = tf.random.normal([num_samples // 3, latent_dim])
-        compositions = generator(x).numpy()
+
+        if "WGAN" in model_name:
+            x = tf.random.normal([num_samples // 3, latent_dim])
+            compositions = generator(x).numpy()
+        elif "Dirichlet" in model_name:
+            compositions = dirichlet.rvs(alpha, size=num_samples // 3)
+
         while gas_sample < num_samples // 3:
             P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, gas_sample)
 
@@ -80,10 +98,16 @@ class DataGen:
                     gas_sample += 1
                     pbar.update()
 
+        # Generate oil samples #########################################################################################
         self.logger.info("Generating oil samples")
         pbar = tqdm(desc="Generating oil samples", total=num_samples // 3)
-        x = tf.random.normal([num_samples // 3, latent_dim])
-        compositions = generator(x).numpy()
+
+        if "WGAN" in model_name:
+            x = tf.random.normal([num_samples // 3, latent_dim])
+            compositions = generator(x).numpy()
+        elif "Dirichlet" in model_name:
+            compositions = dirichlet.rvs(alpha, size=num_samples // 3)
+
         while oil_sample < num_samples // 3:
             P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, oil_sample)
 
@@ -93,11 +117,17 @@ class DataGen:
                     samples.append(sample_dict)
                     oil_sample += 1
                     pbar.update()
-
+        
+        # Generate mixture samples #####################################################################################
         self.logger.info("Generating mix samples")
         pbar = tqdm(desc="Generating mix samples", total=num_samples // 3)
-        x = tf.random.normal([num_samples // 3, latent_dim])
-        compositions = generator(x).numpy()
+
+        if "WGAN" in model_name:
+            x = tf.random.normal([num_samples // 3, latent_dim])
+            compositions = generator(x).numpy()
+        elif "Dirichlet" in model_name:
+            compositions = dirichlet.rvs(alpha, size=num_samples // 3)
+
         while mix_sample < num_samples // 3:
             P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, mix_sample)
 
@@ -180,8 +210,8 @@ class DataGen:
 
         return pd.DataFrame.from_records(samples)
 
-    def create_datasets(self, problem: str):
-        base_folder = os.path.join("data", "processed", "synthetic")
+    def create_datasets(self, problem: str, model_name: str):
+        base_folder = os.path.join("data", "processed", "synthetic", model_name)
         data_path = os.path.join(base_folder, problem, f"{self.dataset_size}to1")
 
         if not os.path.isdir(data_path):
@@ -191,7 +221,7 @@ class DataGen:
             self.logger.info(f"Creating fold #{fold+1} dataset")
 
             if problem == "classification":
-                dataset = self.classification_sampling()
+                dataset = self.classification_sampling(model_name)
                 dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"), index=False)
             elif problem == "regression":
                 pass
@@ -199,9 +229,9 @@ class DataGen:
 
 class DataLoader:
 
-    def __init__(self, problem: str, dataset_size: int = 1):
+    def __init__(self, problem: str, model_name: str, dataset_size: int = 1):
         self.problem = problem
-        synthetic_base_folder = os.path.join("data", "processed", "synthetic")
+        synthetic_base_folder = os.path.join("data", "processed", "synthetic", model_name)
         self.synthetic_data_path = os.path.join(synthetic_base_folder, problem, f"{dataset_size}to1")
 
         base_folder = os.path.join("data", "processed", "experimental")
@@ -251,5 +281,5 @@ class DataLoader:
             targets = pd.get_dummies(processed_data["class"], dtype=np.float32)
         elif problem == "regression":
             targets = processed_data[REGRESSION_TARGET_NAMES]
-        
+
         return features, targets

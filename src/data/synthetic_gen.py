@@ -10,7 +10,14 @@ from neqsim.thermo import TPflash
 from neqsim.thermo.thermoTools import dataFrame
 from src.models.synthesis.train_models import SynthesisTraining
 from src.utils import create_fluid
-from src.utils.constants import NEQSIM_COMPONENTS, FEATURES_NAMES
+from src.utils.constants import (
+    FLUID_COMPONENTS,
+    NEQSIM_COMPONENTS,
+    FEATURES_NAMES,
+    P_MIN_MAX,
+    T_MIN_MAX,
+    REGRESSION_TARGET_NAMES,
+)
 from tqdm import tqdm
 from typing import Any
 
@@ -85,7 +92,6 @@ class DataGen:
                     sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
                     samples.append(sample_dict)
                     oil_sample += 1
-                    pbar.set_description(f"Oil: {oil_sample}")
                     pbar.update()
 
         self.logger.info("Generating mix samples")
@@ -100,7 +106,6 @@ class DataGen:
                     sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "mix"}
                     samples.append(sample_dict)
                     mix_sample += 1
-                    pbar.set_description(f"Mix: {mix_sample}")
                     pbar.update()
 
         return pd.DataFrame.from_records(samples)
@@ -195,6 +200,7 @@ class DataGen:
 class DataLoader:
 
     def __init__(self, problem: str, dataset_size: int = 1):
+        self.problem = problem
         synthetic_base_folder = os.path.join("data", "processed", "synthetic")
         self.synthetic_data_path = os.path.join(synthetic_base_folder, problem, f"{dataset_size}to1")
 
@@ -202,4 +208,48 @@ class DataLoader:
         self.data_path = os.path.join(base_folder, problem, "030points")
 
     def load_cross_validation_datasets(self):
-        self.train_files = glob.glob(os.path.join(self.data_path, "train_*.csv"))
+        self.train_files = glob.glob(os.path.join(self.synthetic_data_path, "train_*.csv"))
+        self.valid_files = glob.glob(os.path.join(self.data_path, "valid_*.csv"))
+        self.test_files = glob.glob(os.path.join(self.data_path, "test_*.csv"))
+
+        datasets = {"train": [], "valid": [], "test": []}
+        min_max = []
+        for train_f, valid_f, test_f in zip(self.train_files, self.valid_files, self.test_files):
+
+            train_features, train_targets = self.preprocessing(pd.read_csv(train_f), problem=self.problem)
+            valid_features, valid_targets = self.preprocessing(pd.read_csv(valid_f), problem=self.problem)
+            test_features, test_targets = self.preprocessing(pd.read_csv(test_f), problem=self.problem)
+
+            if self.problem == "regression":
+                min_vals, max_vals = train_targets.min(), train_targets.max()
+                min_max.append([min_vals.to_numpy(), max_vals.to_numpy()])
+
+                train_targets = (train_targets - min_vals) / (max_vals - min_vals)
+                valid_targets = (valid_targets - min_vals) / (max_vals - min_vals)
+                test_targets = (test_targets - min_vals) / (max_vals - min_vals)
+
+            datasets["train"].append({"features": train_features, "targets": train_targets})
+            datasets["valid"].append({"features": valid_features, "targets": valid_targets})
+            datasets["test"].append({"features": test_features, "targets": test_targets})
+
+        return datasets, min_max
+
+    def preprocessing(self, data: pd.DataFrame, problem: str):
+        processed_data = data.copy()
+        processed_data = processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
+        processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
+
+        if problem in ["classification", "regression"]:
+            P_min, P_max = P_MIN_MAX
+            T_min, T_max = T_MIN_MAX
+            processed_data["P"] = (processed_data["P"] - P_min) / (P_max - P_min)
+            processed_data["T"] = (processed_data["T"] - T_min) / (T_max - T_min)
+
+            features = processed_data[FEATURES_NAMES].copy()
+
+        if problem == "classification":
+            targets = pd.get_dummies(processed_data["class"], dtype=np.float32)
+        elif problem == "regression":
+            targets = processed_data[REGRESSION_TARGET_NAMES]
+        
+        return features, targets

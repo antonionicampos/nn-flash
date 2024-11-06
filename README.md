@@ -5,6 +5,7 @@ This work aims to investigate the calculation of vapor-liquid equilibrium flash 
 ## Pre-requisites
 
 - Python 3.10.11
+- Java JDK 21 LTS https://adoptium.net/download/
 
 ## Setup
 

@@ -181,9 +181,9 @@ if __name__ == "__main__":
             synthesis_viz.create()
 
     if args.generate:
-        model_name = "WGAN #9"
-        dataset_size = 2
+        model_name = "Dirichlet Estimator"
+        dataset_size = 1
 
         logger.info(f"Start generating synthetic samples using {model_name} and {dataset_size}x original dataset size")
         dg = DataGen(dataset_size=dataset_size)
-        dg.create_datasets(model=args.task)
+        dg.create_datasets(problem=args.task, model_name=model_name)

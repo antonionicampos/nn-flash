@@ -132,11 +132,10 @@ class DataGen:
             P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, mix_sample)
 
             if fluid.getNumberOfPhases() == 2:
-                if mix_sample < num_samples // 3:
-                    sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "mix"}
-                    samples.append(sample_dict)
-                    mix_sample += 1
-                    pbar.update()
+                sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "mix"}
+                samples.append(sample_dict)
+                mix_sample += 1
+                pbar.update()
 
         return pd.DataFrame.from_records(samples)
 

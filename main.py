@@ -76,7 +76,7 @@ if __name__ == "__main__":
         default=None,
         action="store",
         choices=["classification", "regression", "synthesis"],
-        required=True,
+        required=False,
         help="Task(s) to run pipeline",
     )
     parser.add_argument(

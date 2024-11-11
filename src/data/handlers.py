@@ -353,7 +353,7 @@ class CrossValidation:
         samples = pd.DataFrame.from_records(samples)
         
         # Save/return dataset
-        samples.to_csv(self.folder_path, "dataset.csv", index=False)
+        samples.to_csv(os.path.join(self.folder_path, "dataset.csv"), index=False)
         return samples
 
     def create_datasets(self):

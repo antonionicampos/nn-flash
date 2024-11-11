@@ -8,7 +8,7 @@ import pandas as pd
 
 from neqsim.thermo import TPflash
 from neqsim.thermo.thermoTools import dataFrame, jNeqSim
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from src.utils.constants import (
     FLUID_COMPONENTS,
     NEQSIM_COMPONENTS,
@@ -230,11 +230,11 @@ class CrossValidation:
     -------
     equilibrium_ratios(fluid)
         return equilibrium ratios of every component.
-    classification_sampling(samples_per_composition)
-        generate pressure and temperature samples for each composition for the classification models.
-    regression_sampling(samples_per_composition)
-        generate pressure and temperature samples for each composition for the regression models.
-    create_cross_validation_datasets(model, samples_per_composition)
+    generate_sample(composition)
+        generate PT and fluid using neqsim simulator.
+    sampling()
+        generate pressure and temperature samples for each composition for the classification and regression models.
+    create_cross_validation_datasets(model)
         create train, validation and test datasets using cross-validation techniques.
     """
 
@@ -253,6 +253,10 @@ class CrossValidation:
 
         components = self.processed_data.columns.str.contains("z")
         self.composition_data = self.processed_data.loc[:, components]
+
+        self.folder_path = os.path.join(self.data_folder, "processed", "experimental")
+        if not os.path.isdir(self.folder_path):
+            os.makedirs(self.folder_path)
 
     def equilibrium_ratios(self, fluid: Any):
         raw_results = dataFrame(fluid)
@@ -282,199 +286,96 @@ class CrossValidation:
         output["nV"] = V
 
         return output
+    
+    def generate_sample(self, composition):
+        P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
+        T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
 
-    def classification_sampling(self, samples_per_composition: int):
+        composition_dict = {name: value for value, name in zip(composition, FEATURES_NAMES[:-2])}
+
+        fluid = create_fluid(composition_dict)
+        fluid.setTemperature(T_sample, "K")
+        fluid.setPressure(P_sample, "bara")
+        TPflash(fluid)
+
+        phases = [p for p in fluid.getPhases() if p]
+        phases_names = [phase.getPhaseTypeName() for phase in phases]
+        return P_sample, T_sample, phases_names, fluid, composition
+
+    def sampling(self):
+        num_samples_per_composition = 10
         samples = []
 
+        self.logger.info("Start sampling...")
         for i in np.arange(self.processed_data.shape[0]):
-            fluid = create_fluid(self.composition_data.loc[i, :].to_dict())
+            self.logger.info(f"Using sample composition {i+1} of {self.processed_data.shape[0]}")
+            gas_sample, oil_sample, mix_sample = 0, 0, 0
 
-            # P_min = 10 bara   T_min = 150 K
-            # P_max = 450 bara  T_max = 1125 K
-            gas_sample, oil_sample, mix_sample = [], [], []
+            composition = self.processed_data.loc[i, FEATURES_NAMES[:-2]]
 
-            while (
-                len(gas_sample) < samples_per_composition // 3
-                or len(oil_sample) < samples_per_composition // 3
-                or len(mix_sample) < samples_per_composition // 3
-            ):
-                P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
-                T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
+            # Generate gas samples #####################################################################################
+            while gas_sample < num_samples_per_composition:
+                P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
-                fluid.setTemperature(T_sample, "K")
-                fluid.setPressure(P_sample, "bara")
-                TPflash(fluid)
+                if fluid.getNumberOfPhases() == 1:
+                    if phases_names[0] == "gas":
+                        sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "gas"}
+                        samples.append(sample_dict)
+                        gas_sample += 1
 
-                phases = [p for p in fluid.getPhases() if p]
-                phases_names = [phase.getPhaseTypeName() for phase in phases]
+            # Generate oil samples #####################################################################################
+            while oil_sample < num_samples_per_composition:
+                P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
+
                 if fluid.getNumberOfPhases() == 1:
                     if phases_names[0] == "oil":
-                        if len(oil_sample) < samples_per_composition // 3:
-                            oil_sample.append([T_sample, P_sample])
-                    if phases_names[0] == "gas":
-                        if len(gas_sample) < samples_per_composition // 3:
-                            gas_sample.append([T_sample, P_sample])
-                elif fluid.getNumberOfPhases() == 2:
-                    if len(mix_sample) < samples_per_composition // 3:
-                        mix_sample.append([T_sample, P_sample])
+                        sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
+                        samples.append(sample_dict)
+                        oil_sample += 1
 
-            for s in oil_sample:
-                sample_dict = self.processed_data.iloc[i, :].to_dict()
-                sample_dict.update({"T": s[0], "P": s[1], "class": "oil"})
-                samples.append(sample_dict)
-
-            for s in gas_sample:
-                sample_dict = self.processed_data.iloc[i, :].to_dict()
-                sample_dict.update({"T": s[0], "P": s[1], "class": "gas"})
-                samples.append(sample_dict)
-
-            for s in mix_sample:
-                sample_dict = self.processed_data.iloc[i, :].to_dict()
-                sample_dict.update({"T": s[0], "P": s[1], "class": "mix"})
-                samples.append(sample_dict)
-
-        return pd.DataFrame.from_records(samples)
-
-    def regression_sampling(self, samples_per_composition: int):
-        samples = []
-
-        for i in np.arange(self.processed_data.shape[0]):
-            fluid = create_fluid(self.composition_data.loc[i, :].to_dict())
-
-            composition_samples = []
-            while len(composition_samples) < samples_per_composition:
-                P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
-                T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
-
-                fluid.setTemperature(T_sample, "K")
-                fluid.setPressure(P_sample, "bara")
-                TPflash(fluid)
+            # Generate mixture samples #################################################################################
+            while mix_sample < num_samples_per_composition:
+                P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
                 if fluid.getNumberOfPhases() == 2:
-                    sample_dict = self.processed_data.iloc[i, :].to_dict()
-                    outputs = self.equilibrium_ratios(fluid)
+                    # Classification dataset
+                    sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "mix"}
 
+                    # Regression dataset
+                    outputs = self.equilibrium_ratios(fluid)
                     if any([v < 10e-15 for v in outputs.values()]):
                         continue
                     else:
-                        s = {"T": T_sample, "P": P_sample}
-                        s.update(outputs)
-                        sample_dict.update(s)
-                        composition_samples.append(sample_dict)
-            samples.extend(composition_samples)
+                        sample_dict.update(outputs)
+                        samples.append(sample_dict)
+                        mix_sample += 1
 
-        return pd.DataFrame.from_records(samples)
+        samples = pd.DataFrame.from_records(samples)
+        
+        # Save/return dataset
+        samples.to_csv(self.folder_path, "dataset.csv", index=False)
+        return samples
 
-    def create_datasets(self, model: str, samples_per_composition: int = None):
-        models = ["classification", "regression", "synthesis"]
-        assert model in models, "model argument can only be 'classification', 'regression' or 'synthesis'"
-        root_folder = os.path.join(self.data_folder, "processed", "experimental")
+    def create_datasets(self):
+        if os.path.isfile(os.path.join(self.folder_path, "dataset.csv")):
+            samples = pd.read_csv(os.path.join(self.folder_path, "dataset.csv"))
+        else:
+            samples = self.sampling()
 
-        if model == "classification" and samples_per_composition:
-            samples = self.classification_sampling(samples_per_composition)
+        self.logger.info(f"Using Stratified K Fold with K = {self.k_folds}")
+        skf = StratifiedKFold(n_splits=self.k_folds, shuffle=True, random_state=self.random_state)
+        samples = samples.sample(frac=1, ignore_index=True)
 
-            self.logger.info(f"Using Stratified K Fold with K = {self.k_folds}")
-            skf = StratifiedKFold(n_splits=self.k_folds, shuffle=True, random_state=self.random_state)
-            folder_path = os.path.join(root_folder, "classification", f"{samples_per_composition:03d}points")
+        for i, (train_idx, test_idx) in enumerate(skf.split(samples, samples["class"])):
+            train_data = samples.iloc[train_idx, :]
+            test_data = samples.iloc[test_idx, :]
 
-            if not os.path.isdir(folder_path):
-                os.makedirs(folder_path)
+            valid_data, test_data = train_test_split(test_data, test_size=0.5, random_state=13, stratify=test_data["class"])
 
-            samples = samples.sample(frac=1, ignore_index=True)
-            for i, (train_i, test_i) in enumerate(skf.split(samples, samples["class"])):
-                train_size = train_i.shape[0] - test_i.shape[0]
-                train_i, valid_i = train_i[:train_size], train_i[train_size:]
-
-                self.logger.info(f">> Fold {i+1} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                self.logger.info(f"Train: {train_i.shape[0]}, valid: {valid_i.shape[0]}, test: {test_i.shape[0]}")
-
-                train = samples.iloc[train_i, :]
-                valid = samples.iloc[valid_i, :]
-                test = samples.iloc[test_i, :]
-                ots = train[train["class"] == "oil"].shape[0]
-                gts = train[train["class"] == "gas"].shape[0]
-                mts = train[train["class"] == "mix"].shape[0]
-                self.logger.info(f">> Train per class: {ots} (oil), {gts} (gas), {mts} (mix)")
-                ovs = valid[valid["class"] == "oil"].shape[0]
-                gvs = valid[valid["class"] == "gas"].shape[0]
-                mvs = valid[valid["class"] == "mix"].shape[0]
-                self.logger.info(f">> Valid per class: {ovs} (oil), {gvs} (gas), {mvs} (mix)")
-                ots = test[test["class"] == "oil"].shape[0]
-                gts = test[test["class"] == "gas"].shape[0]
-                mts = test[test["class"] == "mix"].shape[0]
-                self.logger.info(f">> Test per class: {ots} (oil), {gts} (gas), {mts} (mix)")
-
-                train_filepath = os.path.join(folder_path, f"train_fold={i+1:02d}.csv")
-                valid_filepath = os.path.join(folder_path, f"valid_fold={i+1:02d}.csv")
-                test_filepath = os.path.join(folder_path, f"test_fold={i+1:02d}.csv")
-                samples.iloc[train_i, :].to_csv(train_filepath, index=False)
-                samples.iloc[valid_i, :].to_csv(valid_filepath, index=False)
-                samples.iloc[test_i, :].to_csv(test_filepath, index=False)
-                self.logger.info(f"Train data saved on file {train_filepath}")
-                self.logger.info(f"Valid data saved on file {valid_filepath}")
-                self.logger.info(f"Test data saved on file {test_filepath}")
-        elif model == "regression" and samples_per_composition:
-            samples = self.regression_sampling(samples_per_composition)
-
-            self.logger.info(f"Using K Fold with K = {self.k_folds}")
-            kf = KFold(n_splits=self.k_folds, shuffle=True, random_state=self.random_state)
-            folder_path = os.path.join(root_folder, "regression", f"{samples_per_composition:03d}points")
-
-            if not os.path.isdir(folder_path):
-                os.makedirs(folder_path)
-
-            samples = samples.sample(frac=1, ignore_index=True)
-            for i, (train_i, test_i) in enumerate(kf.split(samples)):
-                train_size = train_i.shape[0] - test_i.shape[0]
-                train_i, valid_i = train_i[:train_size], train_i[train_size:]
-
-                self.logger.info(f">>>> Fold {i+1} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                self.logger.info(f"Train: {train_i.shape[0]}, valid: {valid_i.shape[0]}, test: {test_i.shape[0]}")
-
-                train = samples.iloc[train_i, :]
-                valid = samples.iloc[valid_i, :]
-                test = samples.iloc[test_i, :]
-
-                train_filepath = os.path.join(folder_path, f"train_fold={i+1:02d}.csv")
-                valid_filepath = os.path.join(folder_path, f"valid_fold={i+1:02d}.csv")
-                test_filepath = os.path.join(folder_path, f"test_fold={i+1:02d}.csv")
-                samples.iloc[train_i, :].to_csv(train_filepath, index=False)
-                samples.iloc[valid_i, :].to_csv(valid_filepath, index=False)
-                samples.iloc[test_i, :].to_csv(test_filepath, index=False)
-                self.logger.info(f"Train data saved on file {train_filepath}")
-                self.logger.info(f"Valid data saved on file {valid_filepath}")
-                self.logger.info(f"Test data saved on file {test_filepath}")
-        elif model == "synthesis":
-            k_folds = 5
-            self.logger.info(f"Using K Fold with K = {k_folds}")
-            kf = KFold(n_splits=k_folds, shuffle=True, random_state=self.random_state)
-            folder_path = os.path.join(root_folder, "synthesis")
-
-            if not os.path.isdir(folder_path):
-                os.makedirs(folder_path)
-
-            samples = self.processed_data.sample(frac=1, ignore_index=True)
-            for i, (train_i, test_i) in enumerate(kf.split(samples)):
-                train_size = train_i.shape[0] - test_i.shape[0]
-                train_i, valid_i = train_i[:train_size], train_i[train_size:]
-
-                self.logger.info(f">>>> Fold {i+1} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                self.logger.info(f"Train: {train_i.shape[0]}, valid: {valid_i.shape[0]}, test: {test_i.shape[0]}")
-
-                train = samples.iloc[train_i, :]
-                valid = samples.iloc[valid_i, :]
-                test = samples.iloc[test_i, :]
-
-                train_filepath = os.path.join(folder_path, f"train_fold={i+1:02d}.csv")
-                valid_filepath = os.path.join(folder_path, f"valid_fold={i+1:02d}.csv")
-                test_filepath = os.path.join(folder_path, f"test_fold={i+1:02d}.csv")
-                samples.iloc[train_i, :].to_csv(train_filepath, index=False)
-                samples.iloc[valid_i, :].to_csv(valid_filepath, index=False)
-                samples.iloc[test_i, :].to_csv(test_filepath, index=False)
-                self.logger.info(f"Train data saved on file {train_filepath}")
-                self.logger.info(f"Valid data saved on file {valid_filepath}")
-                self.logger.info(f"Test data saved on file {test_filepath}")
-
+            train_data.to_csv(os.path.join(self.folder_path, f"train_fold={i+1:02d}.csv"), index=False)
+            valid_data.to_csv(os.path.join(self.folder_path, f"valid_fold={i+1:02d}.csv"), index=False)
+            test_data.to_csv(os.path.join(self.folder_path, f"test_fold={i+1:02d}.csv"), index=False)
+    
 
 class DataLoader:
     def __init__(self):

@@ -8,7 +8,10 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import argparse
 import logging
+import numpy as np
+import tensorflow as tf
 import textwrap
+import uuid
 
 from datetime import date
 from src.data.handlers import DataTransform, CrossValidation
@@ -23,6 +26,9 @@ from src.visualization.classification import ClassificationViz
 from src.visualization.regression import RegressionViz
 from src.visualization.synthesis import SynthesisViz
 
+
+np.random.seed(13)
+tf.random.set_seed(13)
 
 parser = argparse.ArgumentParser(
     prog="NN Flash",
@@ -39,7 +45,7 @@ logs_folder = os.path.join("data", "logs")
 data_folder = os.path.join("data")
 
 dt = date.today().strftime("%Y%m%d")
-logs_filepath = os.path.join(logs_folder, f"main_{dt}.log")
+logs_filepath = os.path.join(logs_folder, f"main_{dt}_{str(uuid.uuid4())}.log")
 if not os.path.isdir(logs_folder):
     os.mkdir(logs_folder)
 
@@ -110,15 +116,8 @@ if __name__ == "__main__":
         logger.info("Starting create cross-validation data")
         cv_data = CrossValidation(data_folder)
 
-        if args.task == "classification":
-            logger.info("Starting create classification cross-validation datasets")
-            cv_data.create_datasets(model="classification", samples_per_composition=samples_per_composition)
-        elif args.task == "regression":
-            logger.info("Starting create regression cross-validation datasets")
-            cv_data.create_datasets(model="regression", samples_per_composition=samples_per_composition)
-        elif args.task == "synthesis":
-            logger.info("Starting create synthesis cross-validation datasets")
-            cv_data.create_datasets(model="synthesis")
+        logger.info("Start creating cross-validation datasets")
+        cv_data.create_datasets()
 
     if args.training:
         logger.info("Starting train models")

@@ -381,24 +381,15 @@ class DataLoader:
     def __init__(self):
         self.processed_path = os.path.join("data", "processed")
         self.raw_path = os.path.join("data", "raw")
+        self.cv_folder = os.path.join(self.processed_path, "experimental")
 
-    def load_cross_validation_datasets(self, problem: str, samples_per_composition: int = None):
+    def load_cross_validation_datasets(self, problem: str):
         problem_type = ["classification", "regression", "synthesis"]
         assert problem in problem_type, "problem parameter can only be 'classification', 'regression' or 'synthesis'"
 
-        if problem in ["classification", "regression"] and samples_per_composition:
-            cv_folder = os.path.join(
-                self.processed_path,
-                "experimental",
-                problem,
-                f"{samples_per_composition:03d}points",
-            )
-        else:
-            cv_folder = os.path.join(self.processed_path, "experimental", problem)
-
-        self.train_files = glob.glob(os.path.join(cv_folder, "train_*.csv"))
-        self.valid_files = glob.glob(os.path.join(cv_folder, "valid_*.csv"))
-        self.test_files = glob.glob(os.path.join(cv_folder, "test_*.csv"))
+        self.train_files = glob.glob(os.path.join(self.cv_folder, "train_*.csv"))
+        self.valid_files = glob.glob(os.path.join(self.cv_folder, "valid_*.csv"))
+        self.test_files = glob.glob(os.path.join(self.cv_folder, "test_*.csv"))
 
         datasets = {"train": [], "valid": [], "test": []}
         min_max = []
@@ -424,7 +415,6 @@ class DataLoader:
 
     def preprocessing(self, data: pd.DataFrame, problem: str):
         processed_data = data.copy()
-        processed_data = processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
         processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
 
         if problem in ["classification", "regression"]:
@@ -432,6 +422,9 @@ class DataLoader:
             T_min, T_max = T_MIN_MAX
             processed_data["P"] = (processed_data["P"] - P_min) / (P_max - P_min)
             processed_data["T"] = (processed_data["T"] - T_min) / (T_max - T_min)
+
+            if problem == "regression":
+                processed_data = processed_data[processed_data["class"] == "mix"]
             
             features = processed_data[FEATURES_NAMES].copy()
 

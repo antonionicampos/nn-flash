@@ -165,6 +165,6 @@ REGRESSION_TARGET_NAMES = [
 
 TARGET_NAMES = ["Vapor", "Mistura", "Líquido"]
 
-P_MIN_MAX = [10, 450]
+P_MIN_MAX = [10., 450.]
 
-T_MIN_MAX = [150, 1125]
+T_MIN_MAX = [150., 1125.]

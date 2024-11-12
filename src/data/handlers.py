@@ -173,14 +173,14 @@ class DataTransform:
                     list(thermoOps.getOperation().get("dewP")),
                     label="dew point",
                     alpha=0.25,
-                    color="darkblue",
+                    color="tab:orange",
                 )
                 ax.plot(
                     list(thermoOps.getOperation().get("bubT")),
                     list(thermoOps.getOperation().get("bubP")),
                     label="bubble point",
                     alpha=0.25,
-                    color="green",
+                    color="tab:blue",
                 )
 
         if savefig:
@@ -245,11 +245,11 @@ class CrossValidation:
         self.processed_data = self.processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
 
         self.random_state = 13
-        self.k_folds = 10
+        self.k_folds = 5
         # P_min = 10 bara | P_max = 450 bara
         # T_min = 150 K   | T_max = 1125 K
-        self.P_bounds = [10.0, 450.0]
-        self.T_bounds = [150.0, 1125.0]
+        self.P_bounds = P_MIN_MAX
+        self.T_bounds = T_MIN_MAX
 
         components = self.processed_data.columns.str.contains("z")
         self.composition_data = self.processed_data.loc[:, components]
@@ -303,38 +303,50 @@ class CrossValidation:
         return P_sample, T_sample, phases_names, fluid, composition
 
     def sampling(self):
-        num_samples_per_composition = 10
+        samples_per_class = self.processed_data.shape[0] // 3
         samples = []
 
-        self.logger.info("Start sampling...")
-        for i in np.arange(self.processed_data.shape[0]):
-            self.logger.info(f"Using sample composition {i+1} of {self.processed_data.shape[0]}")
-            gas_sample, oil_sample, mix_sample = 0, 0, 0
+        dataset = self.processed_data.sample(frac=1, ignore_index=True)
+        gas_dataset = dataset.iloc[:samples_per_class, :].reset_index()
+        oil_dataset = dataset.iloc[samples_per_class:2*samples_per_class, :].reset_index()
+        mix_dataset = dataset.iloc[2*samples_per_class:, :].reset_index()
 
-            composition = self.processed_data.loc[i, FEATURES_NAMES[:-2]]
+        self.logger.info("Start gas class sampling...")
+        for i in np.arange(gas_dataset.shape[0]):
+            self.logger.info(f"Using gas sample composition {i+1} of {gas_dataset.shape[0]}")
+            composition = gas_dataset.loc[i, FEATURES_NAMES[:-2]]
 
             # Generate gas samples #####################################################################################
-            while gas_sample < num_samples_per_composition:
+            while True:
                 P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
                 if fluid.getNumberOfPhases() == 1:
                     if phases_names[0] == "gas":
                         sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "gas"}
                         samples.append(sample_dict)
-                        gas_sample += 1
+                        break
+
+        for i in np.arange(oil_dataset.shape[0]):
+            self.logger.info(f"Using oil sample composition {i+1} of {oil_dataset.shape[0]}")
+            composition = oil_dataset.loc[i, FEATURES_NAMES[:-2]]
 
             # Generate oil samples #####################################################################################
-            while oil_sample < num_samples_per_composition:
+            while True:
                 P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
                 if fluid.getNumberOfPhases() == 1:
                     if phases_names[0] == "oil":
                         sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
                         samples.append(sample_dict)
-                        oil_sample += 1
+                        break
+
+        
+        for i in np.arange(mix_dataset.shape[0]):
+            self.logger.info(f"Using mix sample composition {i+1} of {mix_dataset.shape[0]}")
+            composition = mix_dataset.loc[i, FEATURES_NAMES[:-2]]
 
             # Generate mixture samples #################################################################################
-            while mix_sample < num_samples_per_composition:
+            while True:
                 P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
                 if fluid.getNumberOfPhases() == 2:
@@ -348,7 +360,7 @@ class CrossValidation:
                     else:
                         sample_dict.update(outputs)
                         samples.append(sample_dict)
-                        mix_sample += 1
+                        break
 
         samples = pd.DataFrame.from_records(samples)
         

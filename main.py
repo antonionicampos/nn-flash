@@ -63,15 +63,6 @@ logger_params = {
 
 if __name__ == "__main__":
     parser.add_argument(
-        "-s",
-        "--samples-per-composition",
-        default="3",
-        action="store",
-        choices=["3", "30"],
-        required=False,
-        help="Select dataset depending on number of P, T samples per composition sample",
-    )
-    parser.add_argument(
         "--task",
         default=None,
         action="store",
@@ -95,7 +86,6 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--generate", default=None, action="store_true", help="Synthesize new samples")
 
     args = parser.parse_args()
-    samples_per_composition = int(args.samples_per_composition)
 
     logging.basicConfig(level=logging.INFO, **logger_params)
     logging.info("Running in INFO mode")
@@ -124,11 +114,11 @@ if __name__ == "__main__":
 
         if args.task == "classification":
             logger.info("Starting classification models training")
-            classification_training = ClassificationTraining(samples_per_composition=samples_per_composition)
+            classification_training = ClassificationTraining()
             classification_training.run()
         elif args.task == "regression":
             logger.info("Starting regression models training")
-            regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
+            regression_training = RegressionTraining()
 
             if args.regression_loss == "mse":
                 logger.info("Training regression models with default loss function")
@@ -146,10 +136,10 @@ if __name__ == "__main__":
         logger.info("Starting analyze models")
 
         if args.task == "classification":
-            classification_analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
+            classification_analysis = ClassificationAnalysis()
             classification_analysis.run()
         elif args.task == "regression":
-            regression_analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
+            regression_analysis = RegressionAnalysis()
             regression_analysis.run()
         elif args.task == "synthesis":
             synthesis_analysis = SynthesisAnalysis()
@@ -160,12 +150,12 @@ if __name__ == "__main__":
 
         if args.task == "classification":
             logger.info("Creating classification visualizations")
-            classification_viz = ClassificationViz(samples_per_composition=samples_per_composition)
+            classification_viz = ClassificationViz()
             classification_viz.create()
         elif args.task == "regression":
             logger.info("Creating regression visualizations")
-            regression_training = RegressionTraining(samples_per_composition=samples_per_composition)
-            regression_viz = RegressionViz(samples_per_composition=samples_per_composition)
+            regression_training = RegressionTraining()
+            regression_viz = RegressionViz()
 
             if args.regression_loss == "mse":
                 logger.info("Creating regression models with default loss function visualizations")

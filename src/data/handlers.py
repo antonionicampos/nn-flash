@@ -382,11 +382,17 @@ class CrossValidation:
             train_data = samples.iloc[train_idx, :]
             test_data = samples.iloc[test_idx, :]
 
-            valid_data, test_data = train_test_split(test_data, test_size=0.5, random_state=13, stratify=test_data["class"])
+            valid_data, test_data = train_test_split(
+                test_data, 
+                test_size=0.5, 
+                random_state=13, 
+                stratify=test_data["class"],
+            )
 
             train_data.to_csv(os.path.join(self.folder_path, f"train_fold={i+1:02d}.csv"), index=False)
             valid_data.to_csv(os.path.join(self.folder_path, f"valid_fold={i+1:02d}.csv"), index=False)
             test_data.to_csv(os.path.join(self.folder_path, f"test_fold={i+1:02d}.csv"), index=False)
+            self.logger.info(f"Fold {i+1:02d} dataset files created")
     
 
 class DataLoader:

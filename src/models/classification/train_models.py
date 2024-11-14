@@ -24,16 +24,9 @@ tf.random.set_seed(13)
 
 class ClassificationTraining:
 
-    def __init__(self, samples_per_composition: int):
-        self.samples_per_composition = samples_per_composition
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.results_folder = os.path.join(
-            "data",
-            "models",
-            "classification",
-            "saved_models",
-            f"{samples_per_composition:03d}points",
-        )
+        self.results_folder = os.path.join("data", "models", "classification", "saved_models")
 
     def run(self):
         """Train classification models defined on models_specs.py script
@@ -41,7 +34,6 @@ class ClassificationTraining:
         Results format:
 
         results = {
-            "samples_per_composition": int,
             "outputs": [
                 {
                     "model_id": int,
@@ -58,14 +50,11 @@ class ClassificationTraining:
         }
         """
         data_loader = DataLoader()
-        cv_data, _ = data_loader.load_cross_validation_datasets(
-            problem="classification",
-            samples_per_composition=self.samples_per_composition,
-        )
+        cv_data, _ = data_loader.load_cross_validation_datasets(problem="classification")
 
         train_data, valid_data = cv_data["train"], cv_data["valid"]
 
-        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        results = {"outputs": []}
         training_start = datetime.now()
         for hp in load_model_hparams(hparams):
             model_name = hp["model_name"]
@@ -210,7 +199,6 @@ class ClassificationTraining:
         results : dict
             Model training results structure. Format below:
             {
-                "samples_per_composition": int,
                 "outputs": [
                     {
                         "model_id": int,
@@ -269,7 +257,7 @@ class ClassificationTraining:
     def load_training_models(self):
         """Load classification models training results"""
         n_folds = 10
-        results = {"samples_per_composition": self.samples_per_composition}
+        results = {}
 
         model_results = []
         for folder in glob.glob(os.path.join(self.results_folder, "*")):

@@ -22,17 +22,10 @@ tf.random.set_seed(13)
 
 class RegressionTraining:
 
-    def __init__(self, samples_per_composition: int):
-        self.samples_per_composition = samples_per_composition
+    def __init__(self):
         self.k_fold = 10
         self.logger = logging.getLogger(__name__)
-        self.results_folder = os.path.join(
-            "data",
-            "models",
-            "regression",
-            "saved_models",
-            f"{samples_per_composition:03d}points",
-        )
+        self.results_folder = os.path.join("data", "models", "regression", "saved_models")
 
     def run(self):
         """Train regression models defined on experiments.py script
@@ -40,7 +33,6 @@ class RegressionTraining:
         Results format:
 
         results = {
-            "samples_per_composition": int,
             "outputs": [
                 {
                     "model_id": int,
@@ -57,14 +49,11 @@ class RegressionTraining:
         }
         """
         data_loader = DataLoader()
-        cv_data, _ = data_loader.load_cross_validation_datasets(
-            problem="regression",
-            samples_per_composition=self.samples_per_composition,
-        )
+        cv_data, _ = data_loader.load_cross_validation_datasets(problem="regression")
 
         train_data, valid_data = cv_data["train"], cv_data["valid"]
 
-        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        results = {"outputs": []}
         training_start = datetime.now()
         for hp in load_model_hparams(hparams):
             model_name = hp["model_name"]
@@ -183,7 +172,6 @@ class RegressionTraining:
         results : dict
             Model training results structure. Format below:
             {
-                "samples_per_composition": int,
                 "outputs": [
                     {
                         "model_id": int,
@@ -237,7 +225,7 @@ class RegressionTraining:
     def load_training_models(self):
         """Load regression models training results"""
         n_folds = 10
-        results = {"samples_per_composition": self.samples_per_composition}
+        results = {}
 
         model_results = []
         for folder in glob.glob(os.path.join(self.results_folder, "*")):
@@ -269,7 +257,6 @@ class RegressionTraining:
         Results format:
 
         results = {
-            "samples_per_composition": int,
             "outputs": [
                 {
                     "hparams": {"hidden_units": List[int], "activation": str},
@@ -283,24 +270,15 @@ class RegressionTraining:
         }"""
         params = {"hidden_layers": [3, 4, 5], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3]}
 
-        results_folder = os.path.join(
-            "data",
-            "models",
-            "regression_with_constrained_loss",
-            "saved_results",
-            f"{self.samples_per_composition:03d}points",
-        )
+        results_folder = os.path.join("data", "models", "regression_with_constrained_loss", "saved_results")
 
         if not os.path.isdir(results_folder):
             os.makedirs(results_folder)
 
         dl = DataLoader()
-        datasets, minmax = dl.load_cross_validation_datasets(
-            problem="regression",
-            samples_per_composition=self.samples_per_composition,
-        )
+        datasets, minmax = dl.load_cross_validation_datasets(problem="regression")
 
-        results = {"samples_per_composition": self.samples_per_composition, "outputs": []}
+        results = {"outputs": []}
         self.hyperparameters = list(product(*[vals for vals in params.values()]))
         for i, (hidden_units, neurons, lambda_) in enumerate(self.hyperparameters):
             hparams = {"hidden_units": [neurons for _ in range(hidden_units)], "lambda": lambda_}
@@ -401,7 +379,6 @@ class RegressionTraining:
             "models",
             "regression_with_constrained_loss",
             "saved_results",
-            f"{self.samples_per_composition:03d}points",
             "train_results.pickle",
         )
         results = self.load_pickle(results_filename)

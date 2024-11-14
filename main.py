@@ -11,9 +11,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 import textwrap
-import uuid
 
-from datetime import date
+from datetime import datetime
 from src.data.handlers import DataTransform, CrossValidation
 from src.data.synthetic_gen import DataGen
 from src.models.classification.evaluate_models import ClassificationAnalysis
@@ -44,8 +43,8 @@ parser = argparse.ArgumentParser(
 logs_folder = os.path.join("data", "logs")
 data_folder = os.path.join("data")
 
-dt = date.today().strftime("%Y%m%d")
-logs_filepath = os.path.join(logs_folder, f"main_{dt}_{str(uuid.uuid4())}.log")
+dt = datetime.now().strftime("%Y%m%d%H%M%S")
+logs_filepath = os.path.join(logs_folder, f"main_{dt}.log")
 if not os.path.isdir(logs_folder):
     os.mkdir(logs_folder)
 

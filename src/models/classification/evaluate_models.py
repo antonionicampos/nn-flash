@@ -9,26 +9,17 @@ from src.models.classification.train_models import ClassificationTraining
 
 
 class ClassificationAnalysis:
-    def __init__(self, samples_per_composition: int):
-        self.results_folder = os.path.join(
-            "data",
-            "models",
-            "classification",
-            "saved_performance_indices",
-            f"{samples_per_composition:03d}points",
-        )
+    def __init__(self):
+        self.results_folder = os.path.join("data", "models", "classification", "saved_performance_indices")
 
         if not os.path.isdir(self.results_folder):
             os.makedirs(self.results_folder)
 
         data_loader = DataLoader()
-        datasets, _ = data_loader.load_cross_validation_datasets(
-            problem="classification",
-            samples_per_composition=samples_per_composition,
-        )
+        datasets, _ = data_loader.load_cross_validation_datasets(problem="classification")
 
         self.valid_datasets = datasets["valid"]
-        self.training = ClassificationTraining(samples_per_composition=samples_per_composition)
+        self.training = ClassificationTraining()
         self.results = self.training.load_training_models()
 
         num_classes = 3

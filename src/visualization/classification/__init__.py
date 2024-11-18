@@ -25,30 +25,20 @@ DPI = 600
 
 class ClassificationViz:
 
-    def __init__(self, samples_per_composition: int):
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.k_folds = 10
-        self.samples_per_composition = samples_per_composition
-        training = ClassificationTraining(samples_per_composition=samples_per_composition)
-        analysis = ClassificationAnalysis(samples_per_composition=samples_per_composition)
+        self.k_folds = 5
+        training = ClassificationTraining()
+        analysis = ClassificationAnalysis()
         self.data_loader = DataLoader()
 
-        cv_data, _ = self.data_loader.load_cross_validation_datasets(
-            problem="classification",
-            samples_per_composition=samples_per_composition,
-        )
+        cv_data, _ = self.data_loader.load_cross_validation_datasets(problem="classification")
         self.valid_data = cv_data["valid"]
         self.logger.info("Loading training models results")
         self.results = training.load_training_models()
         self.logger.info("Loading performance indices results")
         self.indices = analysis.load_performance_indices()
-        self.viz_folder = os.path.join(
-            "data",
-            "visualization",
-            "classification",
-            "saved_viz",
-            f"{samples_per_composition:03d}points",
-        )
+        self.viz_folder = os.path.join("data", "models", "classification", "saved_viz")
 
         if not os.path.isdir(self.viz_folder):
             os.makedirs(self.viz_folder)

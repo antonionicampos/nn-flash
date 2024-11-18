@@ -256,7 +256,7 @@ class ClassificationTraining:
 
     def load_training_models(self):
         """Load classification models training results"""
-        n_folds = 10
+        n_folds = 5
         results = {}
 
         model_results = []

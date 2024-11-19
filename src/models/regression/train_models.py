@@ -269,7 +269,11 @@ class RegressionTraining:
         }"""
         params = {"hidden_layers": [3, 4, 5], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3]}
 
-        results_folder = os.path.join("data", "models", "regression_with_constrained_loss", "saved_results")
+        models_folder = os.path.join("data", "models", "regression_with_constrained_loss", "saved_results")
+        results_folder = os.path.join("data", "models", "regression_with_constrained_loss", "saved_performance_indices")
+
+        if not os.path.isdir(models_folder):
+            os.makedirs(models_folder)
 
         if not os.path.isdir(results_folder):
             os.makedirs(results_folder)
@@ -337,7 +341,7 @@ class RegressionTraining:
 
                     if float(valid_loss) < best_valid_loss:
                         best_model_path = os.path.join(
-                            results_folder,
+                            models_folder,
                             f"best_model_model_id={i}_fold={j}_epoch={epoch}.keras",
                         )
                         best_epoch = epoch
@@ -375,13 +379,13 @@ class RegressionTraining:
         self.save_pickle(os.path.join(results_folder, "train_results.pickle"), results)
 
     def plot_mse_loss_with_soft_constraint(self):
-        results_filename = os.path.join(
-            "data",
-            "models",
-            "regression_with_constrained_loss",
-            "saved_results",
-            "train_results.pickle",
-        )
+        root_folder = os.path.join("data", "models", "regression_with_constrained_loss")
+        viz_folder = os.path.join(root_folder, "saved_viz")
+        results_filename = os.path.join(root_folder, "saved_performance_indices", "train_results.pickle")
+
+        if not os.path.isdir(viz_folder):
+            os.makedirs(viz_folder)
+
         results = self.load_pickle(results_filename)
         hparams = pd.DataFrame.from_records(
             [
@@ -442,5 +446,5 @@ class RegressionTraining:
             axs[1].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
         plt.subplots_adjust(hspace=0.1)
         f.tight_layout()
-        f.savefig(os.path.join("data", "images", "mse_with_soft_constraint_plot.png"), dpi=600)
+        f.savefig(os.path.join(viz_folder, "mse_with_soft_constraint_plot.png"), dpi=600)
         return results

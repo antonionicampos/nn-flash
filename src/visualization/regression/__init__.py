@@ -24,27 +24,18 @@ DPI = 400
 
 class RegressionViz:
 
-    def __init__(self, samples_per_composition: int):
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.k_folds = 10
-        training = RegressionTraining(samples_per_composition=samples_per_composition)
-        analysis = RegressionAnalysis(samples_per_composition=samples_per_composition)
+        self.k_folds = 5
+        training = RegressionTraining()
+        analysis = RegressionAnalysis()
         self.data_loader = DataLoader()
 
-        cv_data, _ = self.data_loader.load_cross_validation_datasets(
-            problem="regression",
-            samples_per_composition=samples_per_composition,
-        )
+        cv_data, _ = self.data_loader.load_cross_validation_datasets(problem="regression")
         self.valid_data = cv_data["valid"]
         self.results = training.load_training_models()
         self.indices = analysis.load_performance_indices()
-        self.viz_folder = os.path.join(
-            "data",
-            "visualization",
-            "regression",
-            "saved_viz",
-            f"{samples_per_composition:03d}points",
-        )
+        self.viz_folder = os.path.join("data", "models", "regression", "saved_viz")
 
         if not os.path.isdir(self.viz_folder):
             os.makedirs(self.viz_folder)
@@ -140,7 +131,6 @@ class RegressionViz:
     def phase_diagram(
         self,
         model_ids: List[int],
-        samples_per_composition: int,
         label: int = 1,
         fold: int = 0,
         use_mean_prediction=False,
@@ -148,10 +138,7 @@ class RegressionViz:
         ylim: Tuple[float] = (),
     ):
         self.logger.info("Starting phase diagram generation")
-        datasets = self.data_loader.load_cross_validation_datasets(
-            problem="classification",
-            samples_per_composition=samples_per_composition,
-        )
+        datasets = self.data_loader.load_cross_validation_datasets(problem="classification")
 
         data = pd.concat(datasets["test"], axis=0, ignore_index=True)
 

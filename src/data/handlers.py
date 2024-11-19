@@ -306,7 +306,7 @@ class CrossValidation:
         samples_per_class = self.processed_data.shape[0] // 3
         samples = []
 
-        dataset = self.processed_data.sample(frac=1, ignore_index=True)
+        dataset = self.processed_data.sample(frac=1, ignore_index=True, random_state=self.random_state)
         gas_dataset = dataset.iloc[:samples_per_class, :].reset_index()
         oil_dataset = dataset.iloc[samples_per_class:2*samples_per_class, :].reset_index()
         mix_dataset = dataset.iloc[2*samples_per_class:, :].reset_index()
@@ -385,7 +385,7 @@ class CrossValidation:
             valid_data, test_data = train_test_split(
                 test_data, 
                 test_size=0.5, 
-                random_state=13, 
+                random_state=self.random_state, 
                 stratify=test_data["class"],
             )
 

@@ -23,7 +23,7 @@ tf.random.set_seed(13)
 class RegressionTraining:
 
     def __init__(self):
-        self.k_fold = 10
+        self.k_fold = 5
         self.logger = logging.getLogger(__name__)
         self.results_folder = os.path.join("data", "models", "regression", "saved_models")
 
@@ -224,7 +224,6 @@ class RegressionTraining:
 
     def load_training_models(self):
         """Load regression models training results"""
-        n_folds = 10
         results = {}
 
         model_results = []
@@ -232,7 +231,7 @@ class RegressionTraining:
             folds = []
             model_obj = self.load_pickle(os.path.join(folder, "model_info.pickle"))
 
-            for fold in np.arange(n_folds):
+            for fold in np.arange(self.k_fold):
                 model = tf.keras.models.load_model(os.path.join(folder, f"Fold{fold+1}", "model.keras"))
                 history = pd.read_csv(os.path.join(folder, f"Fold{fold+1}", "history.csv"))
                 folds.append({"fold": fold + 1, "history": history, "model": model})
@@ -354,7 +353,9 @@ class RegressionTraining:
                 y_pred = denorm(y_hat_valid, min_vals, max_vals)
                 xi_pred, yi_pred = self.convert_K_to_XY(y_pred, x_valid)
 
-                self.logger.info(f"{hparams}, fold: {j+1}, best valid loss: {round(best_valid_loss, 6)} [epoch {best_epoch}]")
+                self.logger.info(
+                    f"{hparams}, fold: {j+1}, best valid loss: {round(best_valid_loss, 6)} [epoch {best_epoch}]"
+                )
 
                 r["folds"].append(
                     {

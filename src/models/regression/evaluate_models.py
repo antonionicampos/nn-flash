@@ -8,27 +8,18 @@ from src.utils import denorm
 
 
 class RegressionAnalysis:
-    def __init__(self, samples_per_composition: int):
-        self.results_folder = os.path.join(
-            "data",
-            "models",
-            "regression",
-            "saved_performance_indices",
-            f"{samples_per_composition:03d}points",
-        )
+    def __init__(self):
+        self.results_folder = os.path.join("data", "models", "regression", "saved_performance_indices")
 
         if not os.path.isdir(self.results_folder):
             os.makedirs(self.results_folder)
 
         data_loader = DataLoader()
-        datasets, min_max = data_loader.load_cross_validation_datasets(
-            problem="regression",
-            samples_per_composition=samples_per_composition,
-        )
+        datasets, min_max = data_loader.load_cross_validation_datasets(problem="regression")
 
         self.min_max = min_max
         self.valid_datasets = datasets["valid"]
-        self.training = RegressionTraining(samples_per_composition=samples_per_composition)
+        self.training = RegressionTraining()
         self.results = self.training.load_training_models()
 
         num_folds = len(self.valid_datasets)

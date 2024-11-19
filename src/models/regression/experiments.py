@@ -2,8 +2,8 @@ hparams = [
     {
         "model_type": "neural_network",
         "params": {
-            "hidden_layers": [0, 1, 2, 3],
-            "hidden_units": [8, 16, 32, 64, 128],
+            "hidden_layers": [0, 1, 2, 3, 4],
+            "hidden_units": [16, 32, 64, 128],
             "activation": ["relu"],
         },
         "opt": {"lr": 0.001, "epochs": 500, "batch_size": 32},

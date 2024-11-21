@@ -10,6 +10,7 @@ from IPython.display import clear_output
 from neqsim.thermo import TPflash
 from neqsim.thermo.thermoTools import dataFrame
 from scipy.stats import dirichlet
+from src.data.handlers import DataLoader as ExperimentalDataLoader
 from src.models.synthesis.train_models import SynthesisTraining
 from src.utils import create_fluid
 from src.utils.constants import (
@@ -26,10 +27,10 @@ from typing import Any
 
 class DataGen:
 
-    def __init__(self, dataset_size: int = 1):
+    def __init__(self, dataset_size: int):
         self.logger = logging.getLogger(__name__)
         self.random_state = 13
-        self.k_folds = 10
+        self.k_folds = 5
         self.dataset_size = dataset_size
 
         # P_min = 10 bara | P_max = 450 bara
@@ -42,7 +43,7 @@ class DataGen:
             obj = pickle.load(f)
         return obj
 
-    def classification_sampling(self, model_name: str = "WGAN #9"):
+    def classification_sampling(self, model_name: str):
 
         def generate_sample(compositions, sample):
             P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
@@ -59,8 +60,12 @@ class DataGen:
             phases_names = [phase.getPhaseTypeName() for phase in phases]
             return P_sample, T_sample, phases_names, fluid, composition
 
+        edl = ExperimentalDataLoader()
+        datasets, _ = edl.load_cross_validation_datasets(problem="classification")
+        train_dataset_size = datasets["train"][0]["features"].shape[0]
+
         samples = []
-        num_samples = self.dataset_size * 10656
+        num_samples = self.dataset_size * train_dataset_size
         model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
 
         st = SynthesisTraining()
@@ -77,7 +82,7 @@ class DataGen:
         # P_min = 10 bara   T_min = 150 K
         # P_max = 450 bara  T_max = 1125 K
         gas_sample, oil_sample, mix_sample = 0, 0, 0
-        
+
         # Generate gas samples #########################################################################################
         self.logger.info("Generating gas samples")
         pbar = tqdm(desc="Generating gas samples", total=num_samples // 3)
@@ -117,7 +122,7 @@ class DataGen:
                     samples.append(sample_dict)
                     oil_sample += 1
                     pbar.update()
-        
+
         # Generate mixture samples #####################################################################################
         self.logger.info("Generating mix samples")
         pbar = tqdm(desc="Generating mix samples", total=num_samples // 3)
@@ -218,6 +223,7 @@ class DataGen:
 
         for fold in range(self.k_folds):
             self.logger.info(f"Creating fold #{fold+1} dataset")
+            print(f"\nCreating fold #{fold+1} dataset")
 
             if problem == "classification":
                 dataset = self.classification_sampling(model_name)

@@ -4,6 +4,7 @@ matplotlib.use("agg")
 
 import os
 
+os.environ["SKLEARN_SEED"] = 13
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import argparse
@@ -179,7 +180,7 @@ if __name__ == "__main__":
         model_name = "WGAN #8"
 
         logger.info(
-            f"Start generating synthetic samples using {model_name}"
+            f"Start generating synthetic samples using {model_name} "
             f"and {args.synthetic_dataset_size}x original dataset size"
         )
         dg = DataGen(dataset_size=args.synthetic_dataset_size)

@@ -28,7 +28,7 @@ class SynthesisViz:
         self.valid_data = cv_data["valid"]
         self.results = training.load_training_models()
         self.indices = analysis.load_performance_indices()
-        self.viz_folder = os.path.join("data", "visualization", "synthesis", "saved_viz")
+        self.viz_folder = os.path.join("data", "models", "synthesis", "saved_viz")
 
         if not os.path.isdir(self.viz_folder):
             os.makedirs(self.viz_folder)
@@ -97,7 +97,7 @@ class SynthesisViz:
 
         # f.subplots_adjust(hspace=0.1)
         f.tight_layout()
-        f.savefig(os.path.join(self.viz_folder, "errorbar_plot.png"), dpi=DPI)
+        f.savefig(os.path.join(self.viz_folder, "kldiv_wasserstein_errorbar_plot.png"), dpi=DPI)
 
     def create(self):
         self.models_table()

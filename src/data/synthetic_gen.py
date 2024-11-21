@@ -238,14 +238,12 @@ class DataLoader:
         self.problem = problem
         synthetic_base_folder = os.path.join("data", "processed", "synthetic", model_name)
         self.synthetic_data_path = os.path.join(synthetic_base_folder, problem, f"{dataset_size}to1")
-
-        base_folder = os.path.join("data", "processed", "experimental")
-        self.data_path = os.path.join(base_folder, problem, "030points")
+        self.experimental_data_path = os.path.join("data", "processed", "experimental")
 
     def load_cross_validation_datasets(self):
         self.train_files = glob.glob(os.path.join(self.synthetic_data_path, "train_*.csv"))
-        self.valid_files = glob.glob(os.path.join(self.data_path, "valid_*.csv"))
-        self.test_files = glob.glob(os.path.join(self.data_path, "test_*.csv"))
+        self.valid_files = glob.glob(os.path.join(self.experimental_data_path, "valid_*.csv"))
+        self.test_files = glob.glob(os.path.join(self.experimental_data_path, "test_*.csv"))
 
         datasets = {"train": [], "valid": [], "test": []}
         min_max = []

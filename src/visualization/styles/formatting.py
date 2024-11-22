@@ -1,1 +1,1 @@
-errorbar_kwargs = {"fmt": "-", "ms": 4.0, "mew": 1.0, "elinewidth": 1.0, "capsize": 2.0, "capthick": 1.0}
+errorbar_kwargs = {"fmt": "o-", "ms": 4.0, "mew": 2.0, "elinewidth": 2.0, "capsize": 3.0, "capthick": 2.0}

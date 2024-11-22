@@ -4,7 +4,7 @@ matplotlib.use("agg")
 
 import os
 
-os.environ["SKLEARN_SEED"] = 13
+os.environ["SKLEARN_SEED"] = "13"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import argparse
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             synthesis_viz.create()
 
     if args.generate:
-        model_name = "WGAN #8"
+        model_name = "Dirichlet Estimator"
 
         logger.info(
             f"Start generating synthetic samples using {model_name} "

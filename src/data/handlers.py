@@ -16,6 +16,7 @@ from src.utils.constants import (
     P_MIN_MAX,
     T_MIN_MAX,
     REGRESSION_TARGET_NAMES,
+    K_FOLDS,
 )
 from src.utils import create_fluid
 from typing import Any, List
@@ -245,7 +246,7 @@ class CrossValidation:
         self.processed_data = self.processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
 
         self.random_state = 13
-        self.k_folds = 5
+        self.k_folds = K_FOLDS
         # P_min = 10 bara | P_max = 450 bara
         # T_min = 150 K   | T_max = 1125 K
         self.P_bounds = P_MIN_MAX
@@ -286,7 +287,7 @@ class CrossValidation:
         output["nV"] = V
 
         return output
-    
+
     def generate_sample(self, composition):
         P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
         T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
@@ -308,8 +309,8 @@ class CrossValidation:
 
         dataset = self.processed_data.sample(frac=1, ignore_index=True, random_state=self.random_state)
         gas_dataset = dataset.iloc[:samples_per_class, :].reset_index()
-        oil_dataset = dataset.iloc[samples_per_class:2*samples_per_class, :].reset_index()
-        mix_dataset = dataset.iloc[2*samples_per_class:, :].reset_index()
+        oil_dataset = dataset.iloc[samples_per_class : 2 * samples_per_class, :].reset_index()
+        mix_dataset = dataset.iloc[2 * samples_per_class :, :].reset_index()
 
         self.logger.info("Start gas class sampling...")
         for i in np.arange(gas_dataset.shape[0]):
@@ -340,7 +341,6 @@ class CrossValidation:
                         samples.append(sample_dict)
                         break
 
-        
         for i in np.arange(mix_dataset.shape[0]):
             self.logger.info(f"Using mix sample composition {i+1} of {mix_dataset.shape[0]}")
             composition = mix_dataset.loc[i, FEATURES_NAMES[:-2]]
@@ -363,7 +363,7 @@ class CrossValidation:
                         break
 
         samples = pd.DataFrame.from_records(samples)
-        
+
         # Save/return dataset
         samples.to_csv(os.path.join(self.folder_path, "dataset.csv"), index=False)
         return samples
@@ -383,9 +383,9 @@ class CrossValidation:
             test_data = samples.iloc[test_idx, :]
 
             valid_data, test_data = train_test_split(
-                test_data, 
-                test_size=0.5, 
-                random_state=self.random_state, 
+                test_data,
+                test_size=0.5,
+                random_state=self.random_state,
                 stratify=test_data["class"],
             )
 
@@ -393,7 +393,7 @@ class CrossValidation:
             valid_data.to_csv(os.path.join(self.folder_path, f"valid_fold={i+1:02d}.csv"), index=False)
             test_data.to_csv(os.path.join(self.folder_path, f"test_fold={i+1:02d}.csv"), index=False)
             self.logger.info(f"Fold {i+1:02d} dataset files created")
-    
+
 
 class DataLoader:
     def __init__(self):
@@ -443,7 +443,7 @@ class DataLoader:
 
             if problem == "regression":
                 processed_data = processed_data[processed_data["class"] == "mix"]
-            
+
             features = processed_data[FEATURES_NAMES].copy()
 
         if problem == "classification":

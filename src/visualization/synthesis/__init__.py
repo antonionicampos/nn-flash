@@ -7,6 +7,7 @@ import pandas as pd
 from src.data.handlers import DataLoader
 from src.models.synthesis.train_models import SynthesisTraining
 from src.models.synthesis.evaluate_models import SynthesisAnalysis
+from src.utils.constants import K_FOLDS
 from src.visualization.styles.formatting import errorbar_kwargs
 
 plt.style.use("seaborn-v0_8-paper")
@@ -19,7 +20,7 @@ class SynthesisViz:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.k_folds = 5
+        self.k_folds = K_FOLDS
         training = SynthesisTraining()
         analysis = SynthesisAnalysis()
         data_loader = DataLoader()

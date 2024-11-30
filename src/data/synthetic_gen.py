@@ -14,12 +14,12 @@ from src.data.handlers import DataLoader as ExperimentalDataLoader
 from src.models.synthesis.train_models import SynthesisTraining
 from src.utils import create_fluid
 from src.utils.constants import (
-    FLUID_COMPONENTS,
     NEQSIM_COMPONENTS,
     FEATURES_NAMES,
     P_MIN_MAX,
     T_MIN_MAX,
     REGRESSION_TARGET_NAMES,
+    K_FOLDS,
 )
 from tqdm import tqdm
 from typing import Any
@@ -30,7 +30,7 @@ class DataGen:
     def __init__(self, dataset_size: int):
         self.logger = logging.getLogger(__name__)
         self.random_state = 13
-        self.k_folds = 5
+        self.k_folds = K_FOLDS
         self.dataset_size = dataset_size
 
         # P_min = 10 bara | P_max = 450 bara

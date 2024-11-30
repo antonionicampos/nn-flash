@@ -13,7 +13,7 @@ from src.models.classification.train_models import ClassificationTraining
 from src.models.classification.evaluate_models import ClassificationAnalysis
 from src.models.classification.utils import binary_classification
 from src.utils import create_fluid
-from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX
+from src.utils.constants import TARGET_NAMES, P_MIN_MAX, T_MIN_MAX, K_FOLDS
 from src.visualization.styles.formatting import errorbar_kwargs
 from typing import List, Tuple
 
@@ -27,7 +27,7 @@ class ClassificationViz:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.k_folds = 5
+        self.k_folds = K_FOLDS
         training = ClassificationTraining()
         analysis = ClassificationAnalysis()
         self.data_loader = DataLoader()

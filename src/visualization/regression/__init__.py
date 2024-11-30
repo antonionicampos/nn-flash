@@ -11,7 +11,7 @@ from src.data.handlers import DataLoader
 from src.models.regression.train_models import RegressionTraining
 from src.models.regression.evaluate_models import RegressionAnalysis
 from src.utils import create_fluid
-from src.utils.constants import P_MIN_MAX, T_MIN_MAX, FEATURES_NAMES, REGRESSION_TARGET_NAMES
+from src.utils.constants import P_MIN_MAX, T_MIN_MAX, FEATURES_NAMES, REGRESSION_TARGET_NAMES, K_FOLDS
 from src.visualization.styles.formatting import errorbar_kwargs
 from typing import List, Tuple
 
@@ -26,7 +26,7 @@ class RegressionViz:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.k_folds = 5
+        self.k_folds = K_FOLDS
         training = RegressionTraining()
         analysis = RegressionAnalysis()
         self.data_loader = DataLoader()

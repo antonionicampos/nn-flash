@@ -12,6 +12,7 @@ from src.data.handlers import DataLoader
 from src.models.synthesis.experiments import hparams
 from src.models.synthesis.wgan import WGANGP, MLPCritic, MLPGenerator, critic_loss, generator_loss, CustomHistory
 from src.utils import load_model_hparams
+from src.utils.constants import K_FOLDS
 from tqdm import tqdm
 
 
@@ -19,7 +20,7 @@ class SynthesisTraining:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.n_folds = 5
+        self.n_folds = K_FOLDS
         self.results_folder = os.path.join("data", "models", "synthesis", "saved_models")
 
     def run(self):

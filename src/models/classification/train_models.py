@@ -15,6 +15,7 @@ from src.data.handlers import DataLoader
 from src.models.classification import NeuralNetClassifier
 from src.models.classification.experiments import hparams
 from src.utils import load_model_hparams
+from src.utils.constants import K_FOLDS
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -256,7 +257,7 @@ class ClassificationTraining:
 
     def load_training_models(self):
         """Load classification models training results"""
-        n_folds = 5
+        n_folds = K_FOLDS
         results = {}
 
         model_results = []

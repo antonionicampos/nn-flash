@@ -169,4 +169,4 @@ P_MIN_MAX = [10., 450.]
 
 T_MIN_MAX = [150., 1125.]
 
-K_FOLDS = 10
+K_FOLDS = 4

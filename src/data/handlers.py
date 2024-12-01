@@ -289,12 +289,37 @@ class CrossValidation:
         return output
 
     def generate_sample(self, composition):
-        P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
-        T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
-
         composition_dict = {name: value for value, name in zip(composition, FEATURES_NAMES[:-2])}
 
+        # Algorithm to guarantee that P and T are close to phase envelope
+        # Give more information around the envelope
         fluid = create_fluid(composition_dict)
+        thermoOps = jNeqSim.thermodynamicOperations.ThermodynamicOperations(fluid)
+        thermoOps.calcPTphaseEnvelope(True, 0.1)
+
+        dewP = np.array(thermoOps.getOperation().get("dewP"))[:-1]
+        bubP = np.array(thermoOps.getOperation().get("bubP"))
+        envelopeP = np.r_[dewP, bubP]
+
+        dewT = np.array(thermoOps.getOperation().get("dewT"))[:-1]
+        bubT = np.array(thermoOps.getOperation().get("bubT"))
+        envelopeT = np.r_[dewT, bubT]
+
+        probs = np.abs(np.diff(envelopeT))
+        probs /= probs.sum()
+
+        index = np.random.choice(np.arange(1, envelopeT.shape[0]), p=probs)
+        T_range = np.array([envelopeT[index - 1], envelopeT[index]])
+        P_range = np.array([envelopeP[index - 1], envelopeP[index]])
+
+        T_center = (T_range[1] - T_range[0]) * np.random.random() + T_range[0]
+        P_center = np.interp(T_center, T_range, P_range)
+
+        noiseP = 0.025 * (envelopeP.max() - envelopeP.min()) * np.random.normal()
+        noiseT = 0.025 * (envelopeT.max() - envelopeT.min()) * np.random.normal()
+        T_sample = T_center + noiseT
+        P_sample = P_center + noiseP
+
         fluid.setTemperature(T_sample, "K")
         fluid.setPressure(P_sample, "bara")
         TPflash(fluid)

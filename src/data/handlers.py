@@ -359,7 +359,8 @@ class CrossValidation:
                         sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "gas"}
                         samples.append(sample_dict)
                         break
-
+        
+        self.logger.info("Start oil class sampling...")
         for i in np.arange(oil_dataset.shape[0]):
             self.logger.info(f"Using oil sample composition {i+1} of {oil_dataset.shape[0]}")
             composition = oil_dataset.loc[i, FEATURES_NAMES[:-2]]
@@ -373,7 +374,8 @@ class CrossValidation:
                         sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
                         samples.append(sample_dict)
                         break
-
+        
+        self.logger.info("Start mixture class sampling...")
         for i in np.arange(mix_dataset.shape[0]):
             self.logger.info(f"Using mix sample composition {i+1} of {mix_dataset.shape[0]}")
             composition = mix_dataset.loc[i, FEATURES_NAMES[:-2]]

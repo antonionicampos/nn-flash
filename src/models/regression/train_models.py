@@ -13,6 +13,7 @@ from src.data.handlers import DataLoader
 from src.models.regression import NeuralNet, ResidualNeuralNet, MeanSquaredErrorWithSoftConstraint
 from src.models.regression.experiments import hparams
 from src.utils import denorm, load_model_hparams
+from src.utils.constants import K_FOLDS
 from tqdm import tqdm
 
 np.set_printoptions(precision=4, suppress=True)
@@ -23,7 +24,7 @@ tf.random.set_seed(13)
 class RegressionTraining:
 
     def __init__(self):
-        self.k_fold = 5
+        self.k_fold = K_FOLDS
         self.logger = logging.getLogger(__name__)
         self.results_folder = os.path.join("data", "models", "regression", "saved_models")
 

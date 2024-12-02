@@ -297,6 +297,9 @@ class CrossValidation:
         thermoOps = jNeqSim.thermodynamicOperations.ThermodynamicOperations(fluid)
         thermoOps.calcPTphaseEnvelope(True, 0.1)
 
+        if 0.0 in list(thermoOps.getOperation().get("dewT")):
+            thermoOps.calcPTphaseEnvelope(False, 0.1)
+
         dewP = np.array(thermoOps.getOperation().get("dewP"))[:-1]
         bubP = np.array(thermoOps.getOperation().get("bubP"))
         envelopeP = np.r_[dewP, bubP]
@@ -307,22 +310,27 @@ class CrossValidation:
 
         probs = np.abs(np.diff(envelopeT))
         probs /= probs.sum()
+        while True:
+            try:
+                index = np.random.choice(np.arange(1, envelopeT.shape[0]), p=probs)
+                T_range = np.array([envelopeT[index - 1], envelopeT[index]])
+                P_range = np.array([envelopeP[index - 1], envelopeP[index]])
 
-        index = np.random.choice(np.arange(1, envelopeT.shape[0]), p=probs)
-        T_range = np.array([envelopeT[index - 1], envelopeT[index]])
-        P_range = np.array([envelopeP[index - 1], envelopeP[index]])
+                T_center = (T_range[1] - T_range[0]) * np.random.random() + T_range[0]
+                P_center = np.interp(T_center, T_range, P_range)
 
-        T_center = (T_range[1] - T_range[0]) * np.random.random() + T_range[0]
-        P_center = np.interp(T_center, T_range, P_range)
+                noiseP = 0.05 * (envelopeP.max() - envelopeP.min()) * np.random.normal()
+                noiseT = 0.05 * (envelopeT.max() - envelopeT.min()) * np.random.normal()
+                T_sample = T_center + noiseT
+                P_sample = P_center + noiseP
 
-        noiseP = 0.025 * (envelopeP.max() - envelopeP.min()) * np.random.normal()
-        noiseT = 0.025 * (envelopeT.max() - envelopeT.min()) * np.random.normal()
-        T_sample = T_center + noiseT
-        P_sample = P_center + noiseP
+                fluid.setTemperature(T_sample, "K")
+                fluid.setPressure(P_sample, "bara")
 
-        fluid.setTemperature(T_sample, "K")
-        fluid.setPressure(P_sample, "bara")
-        TPflash(fluid)
+                TPflash(fluid)
+                break
+            except:
+                continue
 
         phases = [p for p in fluid.getPhases() if p]
         phases_names = [phase.getPhaseTypeName() for phase in phases]

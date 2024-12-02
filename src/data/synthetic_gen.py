@@ -8,7 +8,7 @@ import tensorflow as tf
 
 from IPython.display import clear_output
 from neqsim.thermo import TPflash
-from neqsim.thermo.thermoTools import dataFrame
+from neqsim.thermo.thermoTools import dataFrame, jNeqSim
 from scipy.stats import dirichlet
 from src.data.handlers import DataLoader as ExperimentalDataLoader
 from src.models.synthesis.train_models import SynthesisTraining
@@ -43,23 +43,55 @@ class DataGen:
             obj = pickle.load(f)
         return obj
 
-    def classification_sampling(self, model_name: str):
+    def generate_sample(self, composition):
+        composition_dict = {name: 100 * value for value, name in zip(composition, FEATURES_NAMES[:-2])}
 
-        def generate_sample(compositions, sample):
-            P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
-            T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
+        # Algorithm to guarantee that P and T are close to phase envelope
+        # Give more information around the envelope
+        fluid = create_fluid(composition_dict)
+        thermoOps = jNeqSim.thermodynamicOperations.ThermodynamicOperations(fluid)
+        thermoOps.calcPTphaseEnvelope(True, 0.1)
 
-            composition = {name: 100 * value for value, name in zip(compositions[sample, :], FEATURES_NAMES[:-2])}
+        if 0.0 in list(thermoOps.getOperation().get("dewT")):
+            thermoOps.calcPTphaseEnvelope(False, 0.1)
 
-            fluid = create_fluid(composition)
-            fluid.setTemperature(T_sample, "K")
-            fluid.setPressure(P_sample, "bara")
-            TPflash(fluid)
+        dewP = np.array(thermoOps.getOperation().get("dewP"))[:-1]
+        bubP = np.array(thermoOps.getOperation().get("bubP"))
+        envelopeP = np.r_[dewP, bubP]
 
-            phases = [p for p in fluid.getPhases() if p]
-            phases_names = [phase.getPhaseTypeName() for phase in phases]
-            return P_sample, T_sample, phases_names, fluid, composition
+        dewT = np.array(thermoOps.getOperation().get("dewT"))[:-1]
+        bubT = np.array(thermoOps.getOperation().get("bubT"))
+        envelopeT = np.r_[dewT, bubT]
 
+        probs = np.abs(np.diff(envelopeT))
+        probs /= probs.sum()
+        while True:
+            try:
+                index = np.random.choice(np.arange(1, envelopeT.shape[0]), p=probs)
+                T_range = np.array([envelopeT[index - 1], envelopeT[index]])
+                P_range = np.array([envelopeP[index - 1], envelopeP[index]])
+
+                T_center = (T_range[1] - T_range[0]) * np.random.random() + T_range[0]
+                P_center = np.interp(T_center, T_range, P_range)
+
+                noiseP = 0.05 * (envelopeP.max() - envelopeP.min()) * np.random.normal()
+                noiseT = 0.05 * (envelopeT.max() - envelopeT.min()) * np.random.normal()
+                T_sample = T_center + noiseT
+                P_sample = P_center + noiseP
+
+                fluid.setTemperature(T_sample, "K")
+                fluid.setPressure(P_sample, "bara")
+
+                TPflash(fluid)
+                break
+            except:
+                continue
+
+        phases = [p for p in fluid.getPhases() if p]
+        phases_names = [phase.getPhaseTypeName() for phase in phases]
+        return P_sample, T_sample, phases_names, fluid, composition
+
+    def sampling(self, model_name: str):
         edl = ExperimentalDataLoader()
         datasets, _ = edl.load_cross_validation_datasets(problem="classification")
         train_dataset_size = datasets["train"][0]["features"].shape[0]
@@ -79,157 +111,89 @@ class DataGen:
         elif "Dirichlet" in model_name:
             alpha = self.load_pickle(os.path.join(model_folder, "final_alpha.pickle"))
 
-        # P_min = 10 bara   T_min = 150 K
-        # P_max = 450 bara  T_max = 1125 K
-        gas_sample, oil_sample, mix_sample = 0, 0, 0
-
         # Generate gas samples #########################################################################################
         self.logger.info("Generating gas samples")
-        pbar = tqdm(desc="Generating gas samples", total=num_samples // 3)
-
         if "WGAN" in model_name:
             x = tf.random.normal([num_samples // 3, latent_dim])
             compositions = generator(x).numpy()
         elif "Dirichlet" in model_name:
             compositions = dirichlet.rvs(alpha, size=num_samples // 3)
+        for i in np.arange(compositions.shape[0]):
+            self.logger.info(f"[Gas class] Using sample composition {i+1} of {compositions.shape[0]}")
+            composition = compositions[i, :]
 
-        while gas_sample < num_samples // 3:
-            P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, gas_sample)
+            while True:
+                P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
-            if fluid.getNumberOfPhases() == 1:
-                if phases_names[0] == "gas":
-                    sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "gas"}
-                    samples.append(sample_dict)
-                    gas_sample += 1
-                    pbar.update()
+                if fluid.getNumberOfPhases() == 1:
+                    if phases_names[0] == "gas":
+                        composition_dict = {name: 100 * value for value, name in zip(composition, FEATURES_NAMES[:-2])}
+                        sample_dict = {**composition_dict, "T": T_sample, "P": P_sample, "class": "gas"}
+                        samples.append(sample_dict)
+                        break
 
         # Generate oil samples #########################################################################################
         self.logger.info("Generating oil samples")
-        pbar = tqdm(desc="Generating oil samples", total=num_samples // 3)
-
         if "WGAN" in model_name:
             x = tf.random.normal([num_samples // 3, latent_dim])
             compositions = generator(x).numpy()
         elif "Dirichlet" in model_name:
             compositions = dirichlet.rvs(alpha, size=num_samples // 3)
+        for i in np.arange(compositions.shape[0]):
+            self.logger.info(f"[Oil class] Using sample composition {i+1} of {compositions.shape[0]}")
+            composition = compositions[i, :]
 
-        while oil_sample < num_samples // 3:
-            P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, oil_sample)
+            while True:
+                P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
-            if fluid.getNumberOfPhases() == 1:
-                if phases_names[0] == "oil":
-                    sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "oil"}
-                    samples.append(sample_dict)
-                    oil_sample += 1
-                    pbar.update()
+                if fluid.getNumberOfPhases() == 1:
+                    if phases_names[0] == "oil":
+                        composition_dict = {name: 100 * value for value, name in zip(composition, FEATURES_NAMES[:-2])}
+                        sample_dict = {**composition_dict, "T": T_sample, "P": P_sample, "class": "oil"}
+                        samples.append(sample_dict)
+                        break
 
         # Generate mixture samples #####################################################################################
-        self.logger.info("Generating mix samples")
-        pbar = tqdm(desc="Generating mix samples", total=num_samples // 3)
-
+        self.logger.info("Generating mixture samples")
         if "WGAN" in model_name:
             x = tf.random.normal([num_samples // 3, latent_dim])
             compositions = generator(x).numpy()
         elif "Dirichlet" in model_name:
             compositions = dirichlet.rvs(alpha, size=num_samples // 3)
+        for i in np.arange(compositions.shape[0]):
+            self.logger.info(f"[Mixture class] Using sample composition {i+1} of {compositions.shape[0]}")
+            composition = compositions[i, :]
 
-        while mix_sample < num_samples // 3:
-            P_sample, T_sample, phases_names, fluid, composition = generate_sample(compositions, mix_sample)
+            while True:
+                P_sample, T_sample, phases_names, fluid, composition = self.generate_sample(composition)
 
-            if fluid.getNumberOfPhases() == 2:
-                sample_dict = {**composition, "T": T_sample, "P": P_sample, "class": "mix"}
-                samples.append(sample_dict)
-                mix_sample += 1
-                pbar.update()
+                if fluid.getNumberOfPhases() == 2:
+                    # Classification dataset
+                    composition_dict = {name: 100 * value for value, name in zip(composition, FEATURES_NAMES[:-2])}
+                    sample_dict = {**composition_dict, "T": T_sample, "P": P_sample, "class": "mix"}
 
-        return pd.DataFrame.from_records(samples)
-
-    def equilibrium_ratios(self, fluid: Any):
-        raw_results = dataFrame(fluid)
-        results = (
-            raw_results.replace("", np.nan)
-            .dropna(how="all")
-            .iloc[1:-3, [0, 1, 2, 3]]
-            .set_index(0)
-            .apply(lambda serie: pd.to_numeric(serie))
-        )
-        results.index.name = "Component"
-        results.columns = ["z", "y", "x"]
-
-        # Phase Fractions
-        V = results.at["Phase Fraction", "y"]
-        L = results.at["Phase Fraction", "x"]
-
-        # Phase Component Fractions
-        phases_fractions = results.iloc[:24, :].copy()
-        phases_fractions.index = [f"K_{c[1:]}" for c in NEQSIM_COMPONENTS.keys()]
-
-        z = phases_fractions["z"]
-        x = phases_fractions["x"]
-        phases_fractions.loc[:, "K"] = (z - x * L) / (V * x)
-
-        output = phases_fractions.T.loc["K", :].to_dict()
-        output["nV"] = V
-
-        return output
-
-    def regression_sampling(self, model_name: str = "WGAN #9"):
-        samples = []
-        num_samples = self.dataset_size * 10656
-
-        st = SynthesisTraining()
-        results = st.load_training_models()
-        model_results = [model for model in results["outputs"] if model["model_name"] == model_name][0]
-        latent_dim = model_results["params"]["latent_dim"]
-        model_folder = os.path.join("data", "models", "synthesis", "saved_models", model_name)
-        generator = tf.keras.models.load_model(os.path.join(model_folder, "final_generator.keras"))
-
-        composition_samples = 0
-
-        while composition_samples < num_samples:
-            P_sample = np.random.uniform(self.P_bounds[0], self.P_bounds[1])
-            T_sample = np.random.uniform(self.T_bounds[0], self.T_bounds[1])
-
-            x = tf.random.normal([1, latent_dim])
-            composition_array = generator(x).numpy().flatten()
-            composition = {name: 100 * value for value, name in zip(composition_array, FEATURES_NAMES[:-2])}
-
-            fluid = create_fluid(composition)
-
-            fluid.setTemperature(T_sample, "K")
-            fluid.setPressure(P_sample, "bara")
-            TPflash(fluid)
-
-            if fluid.getNumberOfPhases() == 2:
-                outputs = self.equilibrium_ratios(fluid)
-
-                if any([v < 10e-15 for v in outputs.values()]):
-                    continue
-                else:
-                    composition.update({"T": T_sample, "P": P_sample, **outputs})
-                    samples.append(composition)
-                    composition_samples += 1
-                    clear_output()
-                    print(f"Samples created: {composition_samples}")
+                    # Regression dataset
+                    outputs = self.equilibrium_ratios(fluid)
+                    if any([v < 10e-15 for v in outputs.values()]):
+                        continue
+                    else:
+                        sample_dict.update(outputs)
+                        samples.append(sample_dict)
+                        break
 
         return pd.DataFrame.from_records(samples)
 
-    def create_datasets(self, problem: str, model_name: str):
-        base_folder = os.path.join("data", "processed", "synthetic", model_name)
-        data_path = os.path.join(base_folder, problem, f"{self.dataset_size}to1")
+    def create_datasets(self, model_name: str):
+        data_folder = os.path.join("data", "processed", "synthetic", model_name, f"{self.dataset_size}to1")
 
-        if not os.path.isdir(data_path):
-            os.makedirs(data_path)
+        if not os.path.isdir(data_folder):
+            os.makedirs(data_folder)
 
         for fold in range(self.k_folds):
             self.logger.info(f"Creating fold #{fold+1} dataset")
-            print(f"\nCreating fold #{fold+1} dataset")
 
-            if problem == "classification":
-                dataset = self.classification_sampling(model_name)
-                dataset.to_csv(os.path.join(data_path, f"train_fold={fold+1:02d}.csv"), index=False)
-            elif problem == "regression":
-                pass
+            dataset = self.sampling(model_name)
+            dataset.to_csv(os.path.join(data_folder, f"train_fold={fold+1:02d}.csv"), index=False)
 
 
 class DataLoader:

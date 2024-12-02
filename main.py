@@ -84,13 +84,6 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--analysis", default=None, action="store_true", help="Do Analysis Step")
     parser.add_argument("-v", "--viz", default=None, action="store_true", help="Create and save visualizations")
     parser.add_argument("-g", "--generate", default=None, action="store_true", help="Synthesize new samples")
-    parser.add_argument(
-        "--synthetic-dataset-size",
-        default=1,
-        action="store",
-        type=int,
-        help="Number of samples generated using composition generator model",
-    )
 
     args = parser.parse_args()
 
@@ -179,9 +172,7 @@ if __name__ == "__main__":
     if args.generate:
         model_name = "Dirichlet Estimator"
 
-        logger.info(
-            f"Start generating synthetic samples using {model_name} "
-            f"and {args.synthetic_dataset_size}x original dataset size"
-        )
-        dg = DataGen(dataset_size=args.synthetic_dataset_size)
-        dg.create_datasets(problem=args.task, model_name=model_name)
+        for dataset_size in [1, 2, 3, 5, 10]:
+            logger.info(f"Start generating new samples using {model_name} and {dataset_size}x original dataset size")
+            dg = DataGen(dataset_size=dataset_size)
+            dg.create_datasets(model_name=model_name)

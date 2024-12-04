@@ -219,7 +219,7 @@ class DataLoader:
     def __init__(self, problem: str, model_name: str, dataset_size: int = 1):
         self.problem = problem
         synthetic_base_folder = os.path.join("data", "processed", "synthetic", model_name)
-        self.synthetic_data_path = os.path.join(synthetic_base_folder, problem, f"{dataset_size}to1")
+        self.synthetic_data_path = os.path.join(synthetic_base_folder, f"{dataset_size}to1")
         self.experimental_data_path = os.path.join("data", "processed", "experimental")
 
     def load_cross_validation_datasets(self):

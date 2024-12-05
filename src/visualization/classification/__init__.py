@@ -85,7 +85,7 @@ class ClassificationViz:
         data = {}
         for name in self.indices.keys():
             index = self.indices[name]
-            if name == "cross_entropy" and name == "accuracy":
+            if name == "cross_entropy" or name == "accuracy":
                 continue
                 # mean, std = index.mean(axis=0), index.std(axis=0) / np.sqrt(self.k_folds - 1)
             else:

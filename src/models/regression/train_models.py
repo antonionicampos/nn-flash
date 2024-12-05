@@ -268,7 +268,7 @@ class RegressionTraining:
                 ...
             ]
         }"""
-        params = {"hidden_layers": [3, 4, 5], "hidden_units": [128, 256, 512], "lambda": [0.0, 1e-5, 1e-3]}
+        params = {"hidden_layers": [3], "hidden_units": [128], "lambda": [0.0, 1e-7, 1e-5, 1e-3, 1e-1]}
 
         models_folder = os.path.join("data", "models", "regression_with_constrained_loss", "saved_results")
         results_folder = os.path.join("data", "models", "regression_with_constrained_loss", "saved_performance_indices")

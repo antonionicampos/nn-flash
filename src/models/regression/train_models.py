@@ -12,6 +12,7 @@ from itertools import product
 from src.data.handlers import DataLoader
 from src.models.regression import NeuralNet, ResidualNeuralNet, MeanSquaredErrorWithSoftConstraint
 from src.models.regression.experiments import hparams
+from src.visualization.styles.formatting import errorbar_kwargs
 from src.utils import denorm, load_model_hparams
 from src.utils.constants import K_FOLDS
 from tqdm import tqdm
@@ -398,37 +399,35 @@ class RegressionTraining:
                 for model in results["outputs"]
             ]
         ).astype({"hidden_units": "int16", "hidden_layers": "int16", "lambda": "float64"})
-        hparams = hparams[hparams["lambda"] < 0.1].sort_values([2, 0, 1], axis=1)
         sorted_idx = hparams.index
         xy = np.array([[[f["summ_xi_hat"], f["summ_yi_hat"]] for f in m["folds"]] for m in results["outputs"]])
         losses = np.array([[f["best_valid_loss"] for f in m["folds"]] for m in results["outputs"]])
         mean_losses = np.mean(losses, axis=1)
         std_losses = np.std(losses, axis=1) / np.sqrt(self.k_fold - 1)
 
-        f, axs = plt.subplots(2, 1, figsize=(12, 5), sharex=True)
+        f, axs = plt.subplots(2, 1, figsize=(5, 5), sharex=True)
         axs[0].errorbar(
-            x=np.arange(len(hparams)),
+            x=np.arange(len(hparams)) - 0.1,
             y=np.mean(xy[sorted_idx, :, 0], axis=1),
             yerr=np.std(xy[sorted_idx, :, 0], axis=1) / np.sqrt(self.k_fold - 1),
-            fmt="-",
-            capsize=3,
+            color="tab:blue",
             label="$\sum \widehat{x_i}$",
+            **errorbar_kwargs,
         )
         axs[0].errorbar(
-            x=np.arange(len(hparams)),
+            x=np.arange(len(hparams)) + 0.1,
             y=np.mean(xy[sorted_idx, :, 1], axis=1),
             yerr=np.std(xy[sorted_idx, :, 1], axis=1) / np.sqrt(self.k_fold - 1),
-            fmt="-",
-            capsize=3,
+            color="tab:orange",
             label="$\sum \widehat{y_i}$",
+            **errorbar_kwargs,
         )
         axs[1].errorbar(
             x=np.arange(len(hparams)),
             y=mean_losses[sorted_idx],
             yerr=std_losses[sorted_idx],
-            capsize=3,
-            fmt="-",
             label="Erro Quadrático Médio",
+            **errorbar_kwargs,
         )
         axs[1].set_xticks(
             np.arange(len(hparams)),
@@ -439,12 +438,9 @@ class RegressionTraining:
         axs[0].legend()
         axs[0].axhline(1.0, ls="--")
         axs[0].grid(True)
-        axs[1].legend(loc="lower right")
+        axs[1].legend()
         axs[1].grid(True)
 
-        for i in range(int(np.ceil(9 / 2))):
-            axs[0].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
-            axs[1].axvspan(-0.5 + 6 * i, 2.5 + 6 * i, alpha=0.2)
         plt.subplots_adjust(hspace=0.1)
         f.tight_layout()
         f.savefig(os.path.join(viz_folder, "mse_with_soft_constraint_plot.png"), dpi=600)

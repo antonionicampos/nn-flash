@@ -172,7 +172,7 @@ if __name__ == "__main__":
     if args.generate:
         model_name = "Dirichlet Estimator"
 
-        for dataset_size in [1, 2, 3, 5, 10]:
+        for dataset_size in [1, 2, 10, 50, 100]:
             logger.info(f"Start generating new samples using {model_name} and {dataset_size}x original dataset size")
             dg = DataGen(dataset_size=dataset_size)
             dg.create_datasets(model_name=model_name)

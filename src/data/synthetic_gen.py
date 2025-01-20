@@ -194,6 +194,8 @@ class DataGen:
                     outputs = self.equilibrium_ratios(fluid)
                     if any([v < 10e-15 for v in outputs.values()]):
                         continue
+                    if any([v > 10e5 for v in outputs.values()]):
+                        continue
                     else:
                         sample_dict.update(outputs)
                         samples.append(sample_dict)
@@ -227,10 +229,13 @@ class DataLoader:
         self.valid_files = glob.glob(os.path.join(self.experimental_data_path, "valid_*.csv"))
         self.test_files = glob.glob(os.path.join(self.experimental_data_path, "test_*.csv"))
 
+        self.train_files = sorted(self.train_files, key=lambda p: int(os.path.split(p)[-1].split("=")[-1].split(".")[0]))
+        self.valid_files = sorted(self.valid_files, key=lambda p: int(os.path.split(p)[-1].split("=")[-1].split(".")[0]))
+        self.test_files = sorted(self.test_files, key=lambda p: int(os.path.split(p)[-1].split("=")[-1].split(".")[0]))
+
         datasets = {"train": [], "valid": [], "test": []}
         min_max = []
         for train_f, valid_f, test_f in zip(self.train_files, self.valid_files, self.test_files):
-
             train_features, train_targets = self.preprocessing(pd.read_csv(train_f), problem=self.problem)
             valid_features, valid_targets = self.preprocessing(pd.read_csv(valid_f), problem=self.problem)
             test_features, test_targets = self.preprocessing(pd.read_csv(test_f), problem=self.problem)
@@ -251,7 +256,6 @@ class DataLoader:
 
     def preprocessing(self, data: pd.DataFrame, problem: str):
         processed_data = data.copy()
-        processed_data = processed_data.drop_duplicates(subset=FEATURES_NAMES[:-2], ignore_index=True)
         processed_data[FEATURES_NAMES[:-2]] = processed_data[FEATURES_NAMES[:-2]] / 100.0
 
         if problem in ["classification", "regression"]:
@@ -260,11 +264,16 @@ class DataLoader:
             processed_data["P"] = (processed_data["P"] - P_min) / (P_max - P_min)
             processed_data["T"] = (processed_data["T"] - T_min) / (T_max - T_min)
 
+            if problem == "regression":
+                processed_data = processed_data[processed_data["class"] == "mix"]
+
             features = processed_data[FEATURES_NAMES].copy()
 
         if problem == "classification":
             targets = pd.get_dummies(processed_data["class"], dtype=np.float32)
         elif problem == "regression":
             targets = processed_data[REGRESSION_TARGET_NAMES]
-
+        elif problem == "synthesis":
+            features = processed_data[FEATURES_NAMES[:-2]].copy()
+            targets = None
         return features, targets

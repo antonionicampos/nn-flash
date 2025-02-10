@@ -147,7 +147,7 @@ class ClassificationViz:
             model_id = model_info["model_id"]
 
             self.logger.info(f"ROC curve for model ID: {model_id} and model type: {model_type}")
-            f, axs = plt.subplots(1, 3, figsize=(12, 5))
+            f, axs = plt.subplots(1, 3, sharey=True, figsize=(12, 5))
             for label in range(3):
                 tprs, aucs = [], []
                 mean_fpr = np.linspace(0, 1, 100)
@@ -179,29 +179,29 @@ class ClassificationViz:
                     mean_fpr,
                     mean_tpr,
                     color="b",
-                    label=r"ROC Médio (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+                    label=r"$\mu_{ROC}$ (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
                     lw=1,
                     alpha=0.8,
                 )
 
                 std_tpr = np.std(tprs, axis=0)
-                tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
-                tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+                tprs_upper = mean_tpr + (std_tpr / np.sqrt(self.k_folds - 1))
+                tprs_lower = mean_tpr - (std_tpr / np.sqrt(self.k_folds - 1))
                 axs[label].fill_between(
                     mean_fpr,
                     tprs_lower,
                     tprs_upper,
                     color="grey",
                     alpha=0.5,
-                    label=r"$\pm 1 \sigma$",
+                    label=r"$\pm \Delta_{ROC}$",
                 )
 
                 axs[label].set(
                     xlabel="Taxa de Falso Positivo",
-                    ylabel="Taxa de Verdadeiro Positivo",
-                    title=f"Curva ROC média com incerteza\n(Rótulo positivo '{TARGET_NAMES[label]}')",
+                    ylabel="Taxa de Verdadeiro Positivo" if label == 0 else "",
+                    title=f"Curva ROC\n(Rótulo positivo: {TARGET_NAMES[label]})",
                 )
-                axs[label].legend(loc="lower right", prop={"size": 8})
+                axs[label].legend(loc="lower right", prop={"size": 10})
                 axs[label].grid()
 
                 if xlim:

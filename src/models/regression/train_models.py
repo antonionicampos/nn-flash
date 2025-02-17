@@ -425,7 +425,7 @@ class RegressionTraining:
         axs[1].errorbar(
             x=np.arange(len(hparams)),
             y=mean_losses[sorted_idx],
-            yerr=std_losses[sorted_idx],
+            yerr=std_losses[sorted_idx] / np.sqrt(self.k_fold - 1),
             label="Erro Quadrático Médio",
             **errorbar_kwargs,
         )

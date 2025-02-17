@@ -179,7 +179,7 @@ class ClassificationViz:
                     mean_fpr,
                     mean_tpr,
                     color="b",
-                    label=r"$\mu_{ROC}$ (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+                    label=r"$\mu_{ROC}$ (AUC = %0.3f $\pm$ %0.3f)" % (mean_auc, std_auc),
                     lw=1,
                     alpha=0.8,
                 )

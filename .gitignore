@@ -2,6 +2,7 @@
 .keras/
 .nv/
 data/*
+docs/*
 .bash_history
 *.out
 

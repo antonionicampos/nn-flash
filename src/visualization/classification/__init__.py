@@ -289,9 +289,14 @@ class ClassificationViz:
                     model = fold_info["model"]
                     self.logger.info(f"Fold: {fold_info['fold']}")
                     start = datetime.now()
-                    logits = model(features.values)
-                    ps.append(tf.nn.softmax(logits, axis=1).numpy())
-                    self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
+
+                    if output["model_type"] == "neural_network":
+                        logits = model(features.values)
+                        ps.append(tf.nn.softmax(logits, axis=1).numpy())
+                        self.logger.info(f"Neural Net Elapsed Time: {datetime.now() - start}")
+                    else:
+                        probs = model.predict_proba(features.values)
+                        ps.append(probs)
                 mean_p = np.array(ps).mean(axis=0)
                 std_p = np.array(ps).std(axis=0) / np.sqrt(len(ps))
 
@@ -389,11 +394,11 @@ class ClassificationViz:
             plt.close()
 
     def create(self):
-        self.logger.info("Starting ROC curves creation")
-        self.roc_curves()
-        self.confusion_matrix_plot()
-        self.models_table()
-        self.performance_indices_table()
-        self.errorbar_plot(indices_names=["sp_index"])
+        # self.logger.info("Starting ROC curves creation")
+        # self.roc_curves()
+        # self.confusion_matrix_plot()
+        # self.models_table()
+        # self.performance_indices_table()
+        # self.errorbar_plot(indices_names=["sp_index"])
         # self.phase_diagram(use_mean_prediction=False)
-        # self.phase_diagram(use_mean_prediction=True)
+        self.phase_diagram(use_mean_prediction=True)
